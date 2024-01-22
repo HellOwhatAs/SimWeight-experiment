@@ -9,3 +9,8 @@ python -m venv .venv
 (.venv) cd .\weight_experiment\
 (.venv) maturin.exe develop -r
 ```
+
+## TODO
+- `WeightEmbedding`
+- muliti-p0, defination of problem
+- is Eq(7) of paper wrong?
