@@ -1,7 +1,7 @@
 import folium
 import pickle
 import pandas as pd
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 from tqdm import tqdm
 from extract_data import Result
 
@@ -46,6 +46,14 @@ def add_trips(m: folium.Map, nodes: pd.DataFrame, edges: pd.DataFrame, trips: Li
         color=color,
         weight=weight
     ).add_to(m)
+
+def add_nodes(m: folium.Map, nodes: pd.DataFrame, node_ids: Dict[int, str]):
+    for node_id in node_ids:
+        folium.Circle(
+            (nodes.loc[node_id]['y'], nodes.loc[node_id]['x']),
+            popup = node_ids[node_id],
+
+        ).add_to(m)
 
 if __name__ == "__main__":
     with open("./harbin.pkl", "rb") as f:
