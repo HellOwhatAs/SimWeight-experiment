@@ -9,11 +9,12 @@ def base_edge_map(
         nodes: pd.DataFrame, edges: pd.DataFrame,
         color: str = "#BEBEBE", weight: int = 1, zoom_start: int = 10, tiles: str = '', attr: str = '') -> folium.Map:
     edge_locations: List[List[Tuple[float, float]]] = []
+    nodes_loc = nodes[["y", "x"]].to_numpy().tolist()
     for _, edge in tqdm(edges.iterrows(), dynamic_ncols=True):
         u, v = edge['u'], edge['v']
         edge_locations.append([
-            (nodes.loc[u]['y'], nodes.loc[u]['x']),
-            (nodes.loc[v]['y'], nodes.loc[v]['x'])
+            (nodes_loc[u][0], nodes_loc[u][1]),
+            (nodes_loc[v][0], nodes_loc[v][1])
         ])
     center = list(sum(sum(j[k] for j in i) / len(i) for i in edge_locations) / len(edge_locations) for k in range(2))
     m = folium.Map(
