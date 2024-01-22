@@ -6,25 +6,22 @@ class WeightEmbedding(torch.nn.Module):
     
     def __init__(self, num_edges: int, num_fields: Union[Tuple[int], None] = None):
         super().__init__()
-        if num_fields is not None:
-            self.embedding = torch.nn.Sequential(
-                *flatten([(torch.nn.Linear(i, o), torch.nn.ReLU()) for i, o in pairwise(num_fields)]),
-                torch.nn.Linear(num_fields[-1], 1)
-            )
-        else:
-            self.embedding = None
+        self.embedding = torch.nn.Sequential(
+            *flatten([(torch.nn.Linear(i, o), torch.nn.ReLU()) for i, o in pairwise(num_fields)]),
+            torch.nn.Linear(num_fields[-1], 1)
+        ) if num_fields is not None else None
         self.weight = torch.nn.Parameter(torch.rand((num_edges, )))
 
-    def forward(self, idx: torch.Tensor, filed: Union[torch.Tensor, None] = None) -> torch.Tensor:
+    def forward(self, idx: torch.Tensor, field: Union[torch.Tensor, None] = None) -> torch.Tensor:
         """
         :param idx: tensor of size ``(edge_idxs, 1)``
         :param filed: tensor of size ``(edge_idxs, num_fields)``
         :return: tensor of size ``(edge_idxs,)``
         """
         res = self.weight[idx]
-        assert (filed is None) == (self.embedding is None), "`filed` must consistent with `num_fields` in constructor"
-        if self.embedding is not None and filed is not None:
-            res += self.embedding(filed)
+        assert (field is None) == (self.embedding is None), "`field` must consistent with `num_fields` in constructor"
+        if self.embedding is not None and field is not None:
+            res += self.embedding(field)
         return res
 
 if __name__ == "__main__":
