@@ -21,6 +21,6 @@ python -m venv .venv
   bpr loss is
   $$-\sum_{(i,j)\in G}{\ln  \sigma(\mathrm{length}(j) - \mathrm{length}(i))}$$
   where  
-  $$i \text{ is positive path sample} \\
-    j \text{ is negitive path sample} \\
-    \mathrm{length}(i) = \sum_{e_k \in i} \mathrm{w}(e_k)$$
+  $$i \text{ is positive path sample}$$  
+  $$j \text{ is negitive path sample}$$  
+  $$\mathrm{length}(i) = \sum_{e_k \in i} \mathrm{w}(e_k)$$
