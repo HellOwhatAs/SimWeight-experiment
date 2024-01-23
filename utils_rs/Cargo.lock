@@ -147,6 +147,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
 
 [[package]]
+name = "ordered-float"
+version = "4.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a76df7075c7d4d01fdcb46c912dd17fba5b60c78ea480b475f2b6ab6f666584e"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "parking_lot"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -172,8 +181,7 @@ dependencies = [
 [[package]]
 name = "pathfinding"
 version = "4.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35df0d074a99be583b76dc771329be9f7be45ebae444d601285dc7a094c2ac0a"
+source = "git+https://github.com/HellOwhatAs/pathfinding.git#e986de272d073026793710bb5a06a42597bcf46c"
 dependencies = [
  "deprecate-until",
  "fixedbitset",
@@ -379,6 +387,7 @@ checksum = "e1766d682d402817b5ac4490b3c3002d91dfa0d22812f341609f97b08757359c"
 name = "utils_rs"
 version = "0.1.0"
 dependencies = [
+ "ordered-float",
  "pathfinding",
  "pyo3",
  "rayon",
