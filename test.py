@@ -1,6 +1,6 @@
 from extract_data import Result
 import pickle
-import weight_experiment
+import utils_rs
 import time
 from tqdm import tqdm
 import vis_map
@@ -10,7 +10,7 @@ with open("./beijing.pkl", "rb") as f:
     (nodes, edges, trips) = tmp
 
 def test_length_acc():
-    g = weight_experiment.DiGraph(nodes.shape[0], [(i['u'], i['v']) for _, i in edges.iterrows()])
+    g = utils_rs.DiGraph(nodes.shape[0], [(i['u'], i['v']) for _, i in edges.iterrows()])
     t = time.time()
     res = g.experiment(edges["length"], trips["test"])
     print(time.time() - t)
@@ -37,4 +37,4 @@ def test_map_multip0():
     })
     map.save("tmp.html")
 
-test_map_multip0()
+test_length_acc()

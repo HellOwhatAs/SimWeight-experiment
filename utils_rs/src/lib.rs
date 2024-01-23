@@ -44,7 +44,7 @@ impl DiGraph {
 }
 
 #[pymodule]
-fn weight_experiment(_py: Python, m: &PyModule) -> PyResult<()> {
+fn utils_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<DiGraph>()?;
     Ok(())
 }
