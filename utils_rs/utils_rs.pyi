@@ -35,6 +35,19 @@ class DiGraph:
             List[(path: List[edge_idx], cost)]
         """
 
+    def yen_drop(self, positive_samples: List[List[int]], u: int, v: int, k: int, weight: Optional[List[float]] = None) -> List[Tuple[List[int], float]]:
+        """
+        filter yen's result that paths not in positive_samples
+        Args:
+            positive_samples: `List[List[edge_idx]]`
+            u: start vertex
+            v: target vertex
+            k: the amount of paths requests, including the shortest one
+            weight: `weight[edge_idx] = weight`
+        Returns:
+            List[(path: List[edge_idx], cost)]
+        """
+
     def experiment(self, trips: List[List[int]], weight: Optional[List[int]] = None) -> int:
         """
         Args:

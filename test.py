@@ -1,4 +1,5 @@
 from extract_data import Result
+from typing import Dict, Set, Tuple
 import pickle
 import utils_rs
 import time
@@ -29,13 +30,12 @@ def test_yen():
     map.save("tmp0.html")
 
 def test_map_case():
-    c = {}
+    c: Dict[Tuple[int, int], Set[Tuple[int]]] = {}
     tmp = edges[["u", "v"]].to_numpy().tolist()
     for trip in tqdm(trips["train"]):
         key = (tmp[trip[0]][0], tmp[trip[-1]][1])
         if key in c: c[key].add(tuple(trip))
         else: c[key] = {tuple(trip)}
-
     max_val = max(c.items(), key=lambda x: len(x[1]))
         
     map = vis_map.base_edge_map(nodes, edges,
