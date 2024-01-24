@@ -1,7 +1,7 @@
 import folium
 import pickle
 import pandas as pd
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Iterable
 from tqdm import tqdm
 from extract_data import Result
 
@@ -54,6 +54,19 @@ def add_nodes(m: folium.Map, nodes: pd.DataFrame, node_ids: Dict[int, str]):
             popup = node_ids[node_id],
 
         ).add_to(m)
+
+def add_edges(m: folium.Map, nodes: pd.DataFrame, edges: pd.DataFrame, edge_ids: Iterable[int], color: str = "#FF0000", weight: int = 3):
+    edge_locations: List[List[Tuple[float, float]]] = []
+    for edge_id in edge_ids:
+        edge = edges.loc[edge_id]
+        u, v = edge['u'], edge['v']
+        edge_locations.append([(nodes.loc[u]['y'], nodes.loc[u]['x']), (nodes.loc[v]['y'], nodes.loc[v]['x'])])
+    
+    folium.PolyLine(
+        locations=edge_locations,
+        color=color,
+        weight=weight
+    ).add_to(m)
 
 if __name__ == "__main__":
     with open("./harbin.pkl", "rb") as f:
