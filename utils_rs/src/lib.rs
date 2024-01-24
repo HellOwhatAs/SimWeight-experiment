@@ -68,7 +68,7 @@ impl DiGraph {
 
     pub fn yen_drop(&self, positive_samples: Vec<Vec<usize>>, u: usize, v: usize, k: usize, weight: Option<Vec<f64>>) -> Vec<(Vec<usize>, f64)> {
         let positive_samples_set: HashSet<&Vec<usize>> = HashSet::from_iter(positive_samples.iter());
-        self.yen(u, v, k, weight).into_par_iter().filter(|(positive_path, _)| !positive_samples_set.contains(positive_path)).collect()
+        self.yen(u, v, k, weight).into_iter().filter(|(positive_path, _)| !positive_samples_set.contains(positive_path)).collect()
     }
 
     pub fn experiment(&self, trips: Vec<Vec<usize>>, weight: Option<Vec<f64>>) -> usize {
