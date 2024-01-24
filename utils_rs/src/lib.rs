@@ -1,38 +1,72 @@
 use pyo3::prelude::*;
 use rayon::prelude::*;
-use pathfinding::directed::dijkstra::dijkstra_eid;
+use pathfinding::prelude::{dijkstra_eid, yen_eid};
 use ordered_float::OrderedFloat;
+
+fn determin_weight<'a>(
+    self_weight: &'a Option<Vec<f64>>, weight: &'a Option<Vec<f64>>) -> Option<&'a Vec<f64>> {
+    match (self_weight, weight) {
+        (_, Some(w)) => Some(w),
+        (Some(w), None) => Some(w),
+        (None, None) => None,
+    }
+}
 
 #[pyclass]
 struct DiGraph {
     n: usize,
     edges: Vec<(usize, usize)>,
-    adjlist: Vec<Vec<(usize, usize)>>
+    adjlist: Vec<Vec<(usize, usize)>>,
+    weight: Option<Vec<f64>>
 }
 
 #[pymethods]
 impl DiGraph {
     #[new]
-    fn new(n: usize, edges: Vec<(usize, usize)>) -> Self {
+    fn new(n: usize, edges: Vec<(usize, usize)>, weight: Option<Vec<f64>>) -> Self {
         let mut adjlist = vec![vec![]; n];
         for (idx, (s, t)) in edges.iter().enumerate() {
             adjlist[*s].push((*t, idx));
         }
-        Self { n, edges, adjlist }
+        Self { n, edges, adjlist, weight }
     }
     #[getter]
-    fn n(&self) -> PyResult<usize> {
-        Ok(self.n)
-    }
+    fn n(&self) -> PyResult<usize> { Ok(self.n) }
     #[getter]
-    fn edges(&self) -> PyResult<Vec<(usize, usize)>> {
-        Ok(self.edges.clone())
-    }
+    fn edges(&self) -> PyResult<Vec<(usize, usize)>> { Ok(self.edges.clone()) }
     #[getter]
-    fn adjlist(&self) -> PyResult<Vec<Vec<(usize, usize)>>> {
-        Ok(self.adjlist.clone())
+    fn adjlist(&self) -> PyResult<Vec<Vec<(usize, usize)>>> { Ok(self.adjlist.clone()) }
+    #[getter]
+    fn weight(&self) -> PyResult<Vec<f64>> { Ok(self.weight.clone().expect("weight unspecified")) }
+
+
+    pub fn dijkstra(&self, u: usize, v: usize, weight: Option<Vec<f64>>) -> Option<(Vec<usize>, f64)> {
+        let weight = determin_weight(&self.weight, &weight).expect("must specify weight");
+        let successors = |n: &usize| {
+            self.adjlist[*n].iter().map(|(t, edge_idx)| (*t, OrderedFloat(weight[*edge_idx]), *edge_idx))
+        };
+        let (path, cost) = dijkstra_eid(&u, successors, |p| *p == v).unwrap();
+        Some((path, cost.into()))
     }
-    pub fn experiment(&self, weight: Vec<f64>, trips: Vec<Vec<usize>>) -> usize {
+
+    pub fn yen(&self, u: usize, v: usize, k: usize, weight: Option<Vec<f64>>) -> Vec<(Vec<usize>, f64)> {
+        let weight = determin_weight(&self.weight, &weight).expect("must specify weight");
+        let successors = |n: &usize| {
+            self.adjlist[*n].iter().map(|(t, edge_idx)| (*t, OrderedFloat(weight[*edge_idx]), *edge_idx))
+        };
+        let eid2uvc = |eid: usize| (
+            self.edges[eid].0,
+            self.edges[eid].1,
+            OrderedFloat(weight[eid])
+        );
+        yen_eid( &u, successors, eid2uvc, |p| *p == v, k)
+            .into_iter()
+            .map(|(path, cost)| (path, cost.into()))
+            .collect()
+    }
+
+    pub fn experiment(&self, trips: Vec<Vec<usize>>, weight: Option<Vec<f64>>) -> usize {
+        let weight = determin_weight(&self.weight, &weight).expect("must specify weight");
         let successors = |n: &usize| {
             self.adjlist[*n].iter().map(|(t, edge_idx)| (*t, OrderedFloat(weight[*edge_idx]), *edge_idx))
         };
