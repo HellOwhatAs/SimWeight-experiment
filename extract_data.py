@@ -1,4 +1,4 @@
-import math, os
+import os
 from typing import List, Tuple, Dict, Literal
 import geopandas as gpd
 import pandas as pd
@@ -57,6 +57,7 @@ def extract(path: str = "./preprocessed_data/beijing_data", removeloops: bool = 
 
 
 if __name__ == "__main__":
+    # output files avaliable at https://www.kaggle.com/code/xjq701229/simweight-data-source
     with open("beijing.pkl", "wb") as f:
         pickle.dump(extract("./preprocessed_data/beijing_data/"), f)
     with open("chengdu.pkl", "wb") as f:
