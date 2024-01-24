@@ -30,13 +30,9 @@ def extract(path: str = "./preprocessed_data/beijing_data", removeloops: bool = 
     map_edge_id_to_u_v = edge_df[['u', 'v']].to_numpy()
     map_u_v_to_edge_id = {(u, v): i for i, (u, v) in enumerate(map_edge_id_to_u_v)}
 
-    # node_df[["x", 'y']].to_csv("Case1-vertex.csv")
-
     map_node_osmid_to_id = {j: i for i, j in enumerate(node_df[["osmid"]].to_numpy().flatten())}
     edge_df['u'] = edge_df['u'].map(map_node_osmid_to_id)
     edge_df['v'] = edge_df['v'].map(map_node_osmid_to_id)
-    edge_df['length'] = edge_df["length"].map(math.ceil)
-    # edge_df[["u", "v", "length"]].to_csv("./Case1-edge.csv", index=False)
 
     with open(os.path.join(path, "preprocessed_test_trips_all.pkl"), "rb") as f:
         data_test = pickle.load(f)
