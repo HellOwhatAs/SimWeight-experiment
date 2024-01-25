@@ -3,7 +3,6 @@ import pickle
 import pandas as pd
 from typing import List, Tuple, Dict, Iterable
 from tqdm import tqdm
-from extract_data import Result
 
 def base_edge_map(
         nodes: pd.DataFrame, edges: pd.DataFrame,
@@ -67,11 +66,3 @@ def add_edges(m: folium.Map, nodes: pd.DataFrame, edges: pd.DataFrame, edge_ids:
         color=color,
         weight=weight
     ).add_to(m)
-
-if __name__ == "__main__":
-    with open("./harbin.pkl", "rb") as f:
-        tmp: Result = pickle.load(f)
-        (nodes, edges, trips) = tmp
-    m = base_edge_map(nodes, edges, tiles="Stamen Watercolor", attr="Stamen Watercolor")
-    add_trips(m, nodes, edges, trips['test'][:3000])
-    m.save("harbin.html")
