@@ -24,3 +24,11 @@ python -m venv .venv
   $$i \text{ is positive path sample}$$  
   $$j \text{ is negitive path sample}$$  
   $$\mathrm{length}(i) = \sum_{e_k \in i} \mathrm{w}(e_k)$$
+
+## TODO
+1. negative sampling
+   - k shortest path
+     - no circle: Yen's Algorithm
+     - allow circle: meaningless
+   - otherwise?
+     > 负样本：通过双向dijkstra算法选出200条路线，代表距离或时间权路网中的最优、次优路线（这个有论文证明合理性）。
