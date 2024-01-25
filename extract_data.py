@@ -3,12 +3,11 @@ from typing import List, Tuple, Dict, Literal
 import geopandas as gpd
 import pandas as pd
 import pickle
-from tqdm import tqdm
 
-Result = Tuple[pd.DataFrame, pd.DataFrame, Dict[Literal["train", "test", "valid"], List[List[int]]]]
+Result = Tuple[pd.DataFrame, pd.DataFrame, Dict[Literal["train", "test", "valid"], Dict[Tuple[int, int], List[List[int]]]]]
 """
 Return type of `extract_data.extract`
-`Result = (nodes, edges, {litstr: trips})`
+`Result = (nodes, edges, {litstr: {(u, v): trips}})`
 """
 
 def remove_loops(path):
@@ -22,6 +21,14 @@ def remove_loops(path):
         reduced.append(path[current])
         current = last_occ[path[current]] + 1
     return reduced
+
+def groupy_uv(trips: List[List[int]], edges: List[Tuple[int, int]]) -> Dict[Tuple[int, int], List[List[int]]]:
+    uv2trips: Dict[Tuple[int, int], List[List[int]]] = {}
+    for trip in trips:
+        key = (edges[trip[0]][0], edges[trip[-1]][1])
+        if key in uv2trips: uv2trips[key].append(trip)
+        else: uv2trips[key] = [trip]
+    return uv2trips
 
 def extract(path: str = "./preprocessed_data/beijing_data", removeloops: bool = True) -> Result:
     edge_df: pd.DataFrame = gpd.read_file(os.path.join(path, "map/edges.shp"), ignore_geometry=True)
@@ -40,18 +47,23 @@ def extract(path: str = "./preprocessed_data/beijing_data", removeloops: bool = 
         data_train = pickle.load(f)
     with open(os.path.join(path, "preprocessed_validation_trips_all.pkl"), "rb") as f:
         data_valid = pickle.load(f)
-    data_test = [(idx, [map_u_v_to_edge_id[tuple(map_edge_id_to_u_v[e])] for e in t]) for (idx, t, _) in tqdm(data_test, dynamic_ncols=True)]
-    data_train = [(idx, [map_u_v_to_edge_id[tuple(map_edge_id_to_u_v[e])] for e in t]) for (idx, t, _) in tqdm(data_train, dynamic_ncols=True)]
-    data_valid = [(idx, [map_u_v_to_edge_id[tuple(map_edge_id_to_u_v[e])] for e in t]) for (idx, t, _) in tqdm(data_valid, dynamic_ncols=True)]
+    data_test = [(idx, [map_u_v_to_edge_id[tuple(map_edge_id_to_u_v[e])] for e in t]) for (idx, t, _) in data_test]
+    data_train = [(idx, [map_u_v_to_edge_id[tuple(map_edge_id_to_u_v[e])] for e in t]) for (idx, t, _) in data_train]
+    data_valid = [(idx, [map_u_v_to_edge_id[tuple(map_edge_id_to_u_v[e])] for e in t]) for (idx, t, _) in data_valid]
     
     if removeloops:
-        data_test = [(idx, remove_loops(t)) for (idx,t) in tqdm(data_test, dynamic_ncols=True)]
-        data_train = [(idx, remove_loops(t)) for (idx,t) in tqdm(data_train, dynamic_ncols=True)]
-        data_valid = [(idx, remove_loops(t)) for (idx,t) in tqdm(data_valid, dynamic_ncols=True)]
+        data_test = [(idx, remove_loops(t)) for (idx,t) in data_test]
+        data_train = [(idx, remove_loops(t)) for (idx,t) in data_train]
+        data_valid = [(idx, remove_loops(t)) for (idx,t) in data_valid]
         
-    data_test = [t for (_, t) in tqdm(data_test, dynamic_ncols=True) if len(t) >= 5]
-    data_train = [t for (_, t) in tqdm(data_train, dynamic_ncols=True) if len(t) >= 5]
-    data_valid = [t for (_, t) in tqdm(data_valid, dynamic_ncols=True) if len(t) >= 5]
+    data_test = [t for (_, t) in data_test if len(t) >= 5]
+    data_train = [t for (_, t) in data_train if len(t) >= 5]
+    data_valid = [t for (_, t) in data_valid if len(t) >= 5]
+
+    edges_list = edge_df[["u", "v"]].to_numpy().tolist()
+    data_test = groupy_uv(data_test, edges_list)
+    data_train = groupy_uv(data_train, edges_list)
+    data_valid = groupy_uv(data_valid, edges_list)
 
     return node_df, edge_df, {"train": data_train, "test": data_test, "valid": data_valid}
 
