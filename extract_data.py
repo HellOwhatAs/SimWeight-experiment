@@ -26,6 +26,7 @@ def groupy_uv(trips: List[List[int]], edges: List[Tuple[int, int]]) -> Dict[Tupl
     uv2trips: Dict[Tuple[int, int], List[List[int]]] = {}
     for trip in trips:
         key = (edges[trip[0]][0], edges[trip[-1]][1])
+        if key[0] == key[1]: continue
         if key in uv2trips: uv2trips[key].append(trip)
         else: uv2trips[key] = [trip]
     return uv2trips
