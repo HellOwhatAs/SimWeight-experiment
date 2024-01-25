@@ -71,6 +71,41 @@ impl DiGraph {
         self.yen(u, v, k, weight).into_iter().filter(|(positive_path, _)| !positive_samples_set.contains(positive_path)).collect()
     }
 
+    pub fn path_sampling(&self, u: usize, v: usize, pos_samples: Vec<Vec<usize>>, k: usize, weight: Option<Vec<f64>>) -> Vec<Vec<usize>> {
+        let weight = determin_weight(&self.weight, &weight).expect("must specify weight");
+        let mut filtered_edges: HashSet<usize> = HashSet::new();
+        let pos_samples: HashSet<&Vec<usize>> = HashSet::from_iter(pos_samples.iter());
+        let mut result = vec![];
+        let successors = |n: &usize| {
+            self.adjlist[*n].iter().map(|(t, edge_idx)| (*t, OrderedFloat(weight[*edge_idx]), *edge_idx))
+        };
+        let Some((path, _)) = dijkstra_eid(&u, successors, |p| *p == v) else { return vec![]; };
+        filtered_edges.insert(path[path.len() / 2]);
+        if !pos_samples.contains(&path) {
+            result.push(path);
+        }
+        loop {
+            let filtered_successor = |n: &usize| {
+                successors(n)
+                    .into_iter()
+                    .filter(|(_, _, eid)| !filtered_edges.contains(eid))
+                    .collect::<Vec<_>>()
+            };
+            if let Some((path, _)) = dijkstra_eid(&u, filtered_successor, |p| *p == v) {
+                filtered_edges.insert(path[path.len() / 2]);
+                if !pos_samples.contains(&path) {
+                    result.push(path);
+                    if result.len() >= k { break; }
+                }
+            } else { break; }
+        }
+        result
+    }
+
+    pub fn par_path_sampling(&self, uvs: Vec<(usize, usize)>, pos_samples: Vec<Vec<Vec<usize>>>, k: usize) -> Vec<Vec<Vec<usize>>> {
+        uvs.into_par_iter().zip(pos_samples).map(|((u, v), pos_samples)| self.path_sampling(u, v, pos_samples, k, None)).collect()
+    }
+
     pub fn experiment(&self, trips: Vec<Vec<usize>>, weight: Option<Vec<f64>>) -> usize {
         let weight = determin_weight(&self.weight, &weight).expect("must specify weight");
         let successors = |n: &usize| {

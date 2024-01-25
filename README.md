@@ -30,12 +30,5 @@ python -m venv .venv
 - give up Yen's Algorithm due to it's time complexity
 
 ## TODO
-
-```mermaid
-graph LR
-c --> d & e
-d --> f
-e --> d & f & g
-f --> g & h
-g --> h
-```
+- currently negative sampling using (at least) k dijkstra (, after each dijkstra filter out the middle edge of path)
+  any better?

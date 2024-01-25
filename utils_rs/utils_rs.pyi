@@ -48,6 +48,16 @@ class DiGraph:
             List[(path: List[edge_idx], cost)]
         """
 
+    def path_sampling(self, u: int, v: int, pos_samples: List[List[int]], k: int) -> List[List[int]]:
+        """
+        sample at most k paths from u to v that not in pos_samples
+        """
+
+    def par_path_sampling(self, uvs: List[Tuple[int, int]], pos_samples: List[List[List[int]]], k: int) -> List[List[List[int]]]:
+        """
+        parallel version of path_sampling
+        """
+
     def experiment(self, trips: List[List[int]], weight: Optional[List[int]] = None) -> int:
         """
         Args:
