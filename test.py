@@ -13,10 +13,11 @@ with open("./beijing.pkl", "rb") as f:
     g = utils_rs.DiGraph(nodes.shape[0], [(i['u'], i['v']) for _, i in edges.iterrows()], edges["length"])
 
 def test_length_acc():
+    trips_test = list(more_itertools.flatten(trips["test"].values()))
     t = time.time()
-    res = g.experiment(trips["test"])
+    res = g.experiment(trips_test)
     print(time.time() - t)
-    print(res / len(trips["test"]))
+    print(res / len(trips_test))
 
 def test_yen():
     map = vis_map.base_edge_map(nodes, edges,
@@ -33,7 +34,7 @@ def test_yen():
 def test_map_case():
     c: Dict[Tuple[int, int], Set[Tuple[int]]] = {}
     tmp = edges[["u", "v"]].to_numpy().tolist()
-    for trip in tqdm(trips["train"]):
+    for trip in tqdm(more_itertools.flatten(trips["train"].values())):
         key = (tmp[trip[0]][0], tmp[trip[-1]][1])
         if key in c: c[key].add(tuple(trip))
         else: c[key] = {tuple(trip)}
@@ -51,4 +52,4 @@ def test_map_case():
     })
     map.save("tmp.html")
 
-test_yen()
+test_map_case()
