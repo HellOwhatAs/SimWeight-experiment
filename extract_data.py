@@ -4,7 +4,8 @@ import geopandas as gpd
 import pandas as pd
 import pickle
 
-Result = Tuple[pd.DataFrame, pd.DataFrame, Dict[Literal["train", "test", "valid"], Dict[Tuple[int, int], List[List[int]]]]]
+Trips = Dict[Literal["train", "test", "valid"], Dict[Tuple[int, int], List[List[int]]]]
+Result = Tuple[pd.DataFrame, pd.DataFrame, Trips]
 """
 Return type of `extract_data.extract`
 `Result = (nodes, edges, {litstr: {(u, v): trips}})`
