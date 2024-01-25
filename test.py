@@ -22,8 +22,8 @@ def test_yen():
     map = vis_map.base_edge_map(nodes, edges,
         tiles= 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7',
         attr='高德-常规图')
-    yen_trips = [path for path, _ in g.yen(10893, 7595, 20)]
-    vis_map.add_edges(map, edges, set(more_itertools.flatten(yen_trips)), color="#00FF00")
+    yen_trips = [path for path, _ in g.yen(10893, 7595, 200)]
+    vis_map.add_edges(map, nodes, edges, set(more_itertools.flatten(yen_trips)), color="#00FF00")
     vis_map.add_nodes(map, nodes, {
         10893: "start",
         7595: "target"
