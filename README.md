@@ -1,13 +1,13 @@
 # SimWeight
 
 ## Setup
-
+[Python3](www.python.org) and [Rust](https://www.rust-lang.org/)
 ```
 python -m venv .venv
-.\.venv\Scripts\activate
+.venv/Scripts/activate
 (.venv) pip install -r requirements.txt
-(.venv) cd .\utils_rs\
-(.venv) maturin.exe develop -r
+(.venv) cd utils_rs
+(.venv) maturin develop -r
 ```
 
 ## Roadmap
