@@ -52,4 +52,16 @@ def test_map_case():
     })
     map.save("tmp.html")
 
-test_map_case()
+def test_db():
+    db = utils_rs.Sqlite("tmp.db")
+    db.insert("train", 114514, 1919810, [[1, 2, 3], [111111111, 456]])
+    del db
+
+    db = utils_rs.Sqlite("tmp.db", delete=False)
+    print(db.get("train", 114514, 1919810))
+    del db
+
+    import os
+    os.remove("tmp.db")
+
+test_db()

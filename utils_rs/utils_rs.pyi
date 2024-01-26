@@ -67,3 +67,22 @@ class DiGraph:
         Returns:
             int: num of trips that is shortest path under weight
         """
+
+
+class Sqlite:
+    def __init__(self, db_path: str, delete = True) -> None:
+        """
+        Connect to database
+        """
+    
+    def insert_btyes(self, table: str, data: Tuple[int, int, bytes]) -> None:
+        ...
+
+    def insert(self, table: str, u: int, v: int, samples: List[List[int]]) -> None:
+        ...
+
+    def get_bytes(self, table: str, u: int, v: int) -> Optional[bytes]:
+        ...
+
+    def get(self, table: str, u: int, v: int) -> Optional[List[List[int]]]:
+        ...

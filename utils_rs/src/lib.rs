@@ -1,15 +1,89 @@
+use rusqlite::Connection;
+use bincode::{serialize, deserialize};
 use pyo3::prelude::*;
 use rayon::prelude::*;
 use pathfinding::prelude::{dijkstra_eid, yen_eid};
 use ordered_float::OrderedFloat;
 use std::collections::HashSet;
 
-fn determin_weight<'a>(
-    self_weight: &'a Option<Vec<f64>>, weight: &'a Option<Vec<f64>>) -> Option<&'a Vec<f64>> {
-    match (self_weight, weight) {
-        (_, Some(w)) => Some(w),
-        (Some(w), None) => Some(w),
-        (None, None) => None,
+
+#[pyclass]
+pub struct Sqlite {
+    conn: Option<Connection>
+}
+
+impl Sqlite {
+    fn init(db_path: &str) -> Connection {
+        let conn = Connection::open(db_path).expect("Open-db failed");
+        conn.execute_batch(
+            "CREATE TABLE train (
+                u       INTEGER,
+                v       INTEGER,
+                data    BLOB,
+                PRIMARY KEY (u, v)
+            );
+            CREATE TABLE test (
+                u       INTEGER,
+                v       INTEGER,
+                data    BLOB,
+                PRIMARY KEY (u, v)
+            );
+            CREATE TABLE valid (
+                u       INTEGER,
+                v       INTEGER,
+                data    BLOB,
+                PRIMARY KEY (u, v)
+            );"
+        ).expect("Init-db failed");
+        conn
+    }
+}
+
+#[pymethods]
+impl Sqlite {
+    #[new]
+    fn new(db_path: &str, delete: Option<bool>) -> Self {
+        let delete = match delete { Some(false) => false, _ => true };
+        let conn = match (std::path::Path::new(db_path).exists(), delete) {
+            (true, true) => {
+                std::fs::remove_file(db_path).expect("Delete Failed");
+                Self::init(db_path)
+            },
+            (true, false) => Connection::open(db_path).expect("Open-db failed"),
+            (false, _) => Self::init(db_path)
+        };
+        Sqlite { conn: Some(conn) }
+    }
+
+    pub fn insert_btyes(&self, table: &str, data: (usize, usize, Vec<u8>)) {
+        assert!(["train", "test", "valid"].contains(&table));
+        self.conn.as_ref().expect("Connection dead").execute(
+            &format!("INSERT INTO {table} VALUES (?1, ?2, ?3)"),
+            data,
+        ).expect("Insert failed");
+    }
+
+    pub fn insert(&self, table: &str,  u: usize, v: usize, samples: Vec<Vec<usize>>) {
+        assert!(["train", "test", "valid"].contains(&table));
+        let blob = serialize(&samples).expect("Serialization failed");
+        self.insert_btyes(table, (u, v, blob))
+    }
+
+    pub fn get_bytes(&self, table: &str, u: usize, v: usize) -> Option<Vec<u8>> {
+        assert!(["train", "test", "valid"].contains(&table));
+        let binding = self.conn.as_ref().expect("Connection dead");
+        let mut stmt = binding.prepare(&format!("SELECT data FROM {table} WHERE u = ?1 AND v = ?2")).expect("Sql failed");
+        let mut binding = stmt.query([u, v]).expect("Binding parameters failed");
+        let rows = binding.next().expect(&format!("({u}, {v}) not found"))?;
+        let blob: Vec<u8> = rows.get(0).unwrap();
+        Some(blob)
+    }
+
+    pub fn get(&self, table: &str, u: usize, v: usize) -> Option<Vec<Vec<usize>>> {
+        assert!(["train", "test", "valid"].contains(&table));
+        let blob = self.get_bytes(table, u, v)?;
+        let samples: Vec<Vec<usize>> = deserialize(&blob).expect("Deserialize failed");
+        Some(samples)
     }
 }
 
@@ -20,6 +94,18 @@ struct DiGraph {
     adjlist: Vec<Vec<(usize, usize)>>,
     weight: Option<Vec<f64>>
 }
+
+impl DiGraph {
+    fn determin_weight<'a>(
+        self_weight: &'a Option<Vec<f64>>, weight: &'a Option<Vec<f64>>) -> Option<&'a Vec<f64>> {
+        match (self_weight, weight) {
+            (_, Some(w)) => Some(w),
+            (Some(w), None) => Some(w),
+            (None, None) => None,
+        }
+    }
+}
+
 
 #[pymethods]
 impl DiGraph {
@@ -42,7 +128,7 @@ impl DiGraph {
 
 
     pub fn dijkstra(&self, u: usize, v: usize, weight: Option<Vec<f64>>) -> Option<(Vec<usize>, f64)> {
-        let weight = determin_weight(&self.weight, &weight).expect("must specify weight");
+        let weight = Self::determin_weight(&self.weight, &weight).expect("must specify weight");
         let successors = |n: &usize| {
             self.adjlist[*n].iter().map(|(t, edge_idx)| (*t, OrderedFloat(weight[*edge_idx]), *edge_idx))
         };
@@ -51,7 +137,7 @@ impl DiGraph {
     }
 
     pub fn yen(&self, u: usize, v: usize, k: usize, weight: Option<Vec<f64>>) -> Vec<(Vec<usize>, f64)> {
-        let weight = determin_weight(&self.weight, &weight).expect("must specify weight");
+        let weight = Self::determin_weight(&self.weight, &weight).expect("must specify weight");
         let successors = |n: &usize| {
             self.adjlist[*n].iter().map(|(t, edge_idx)| (*t, OrderedFloat(weight[*edge_idx]), *edge_idx))
         };
@@ -72,7 +158,7 @@ impl DiGraph {
     }
 
     pub fn path_sampling(&self, u: usize, v: usize, pos_samples: Vec<Vec<usize>>, k: usize, weight: Option<Vec<f64>>) -> Vec<Vec<usize>> {
-        let weight = determin_weight(&self.weight, &weight).expect("must specify weight");
+        let weight = Self::determin_weight(&self.weight, &weight).expect("must specify weight");
         let mut filtered_edges: HashSet<usize> = HashSet::new();
         let pos_samples: HashSet<&Vec<usize>> = HashSet::from_iter(pos_samples.iter());
         let mut result = vec![];
@@ -107,7 +193,7 @@ impl DiGraph {
     }
 
     pub fn experiment(&self, trips: Vec<Vec<usize>>, weight: Option<Vec<f64>>) -> usize {
-        let weight = determin_weight(&self.weight, &weight).expect("must specify weight");
+        let weight = Self::determin_weight(&self.weight, &weight).expect("must specify weight");
         let successors = |n: &usize| {
             self.adjlist[*n].iter().map(|(t, edge_idx)| (*t, OrderedFloat(weight[*edge_idx]), *edge_idx))
         };
@@ -121,5 +207,6 @@ impl DiGraph {
 #[pymodule]
 fn utils_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<DiGraph>()?;
+    m.add_class::<Sqlite>()?;
     Ok(())
 }

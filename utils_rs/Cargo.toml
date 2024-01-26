@@ -13,3 +13,5 @@ pyo3 = "0.19.0"
 pathfinding = { git="https://github.com/HellOwhatAs/pathfinding.git" }
 ordered-float = "4.2.0"
 rayon = "1.8"
+rusqlite = { version = "0.30.0", features = ["bundled"] }
+bincode = "1"
