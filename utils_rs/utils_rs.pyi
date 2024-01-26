@@ -82,13 +82,13 @@ class Sqlite:
         Connect to database
         """
     
-    def insert_btyes(self, table: str, data: List[Tuple[int, int, bytes]]) -> None:
+    def insert_btyes(self, table: str, data: List[Tuple[int, int, int, bytes]]) -> None:
         ...
 
     def insert(self, table: str, u: int, v: int, samples: List[List[int]]) -> None:
         ...
 
-    def get_bytes(self, table: str, u: int, v: int) -> Optional[bytes]:
+    def get_bytes(self, table: str, u: int, v: int) -> Optional[Tuple[int, bytes]]:
         ...
 
     def get(self, table: str, u: int, v: int) -> Optional[List[List[int]]]:
