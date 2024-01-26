@@ -7,7 +7,7 @@ def sampling_tosqlite(path: str, g: utils_rs.DiGraph, trips: Trips, k: int = 32,
     for table, v_trips in trips.items():
         uvs = list(v_trips.keys())
         pos_samples = list(v_trips.values())
-        pbar = tqdm(total=len(uvs))
+        pbar = tqdm(total=len(uvs), desc=table)
         g.par_path_sampling_tosqlite(uvs, pos_samples, k, chunk_size, path, table, False, pbar.update)
 
 if __name__ == "__main__":
