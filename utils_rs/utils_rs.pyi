@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Callable
 
 class DiGraph:
     def __init__(self, n: int, edges: List[Tuple[int, int]], weight: Optional[List[float]] = None) -> None:
@@ -53,9 +53,16 @@ class DiGraph:
         sample at most k paths from u to v that not in pos_samples
         """
 
-    def par_path_sampling_tosqlite(self, uvs: List[Tuple[int, int]], pos_samples: List[List[List[int]]], k: int, chunk_size: int, path: str, table: str, delete: bool) -> None:
+    def par_path_sampling_tosqlite(self, uvs: List[Tuple[int, int]], pos_samples: List[List[List[int]]], k: int, chunk_size: int, path: str, table: str, delete: bool, callback: Optional[Callable[[int], None]]) -> None:
         """
         parallel version of path_sampling that outputs to a sqlite db file
+
+        Args:
+            chunk_size: batch size each commit to sqlite
+            path: file path of database
+            table: table name in database
+            delete: whether or not delete the existing db file
+            callback: called after commit, the input would be the size of the chunk
         """
 
     def experiment(self, trips: List[List[int]], weight: Optional[List[int]] = None) -> int:

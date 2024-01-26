@@ -1,12 +1,14 @@
 from extract_data import Result, Trips
 import pickle
 import utils_rs
+from tqdm import tqdm
 
 def sampling_tosqlite(path: str, g: utils_rs.DiGraph, trips: Trips, k: int = 32, chunk_size: int = 4096) -> None:
     for table, v_trips in trips.items():
         uvs = list(v_trips.keys())
         pos_samples = list(v_trips.values())
-        g.par_path_sampling_tosqlite(uvs, pos_samples, k, chunk_size, path, table, False)
+        pbar = tqdm(total=len(uvs))
+        g.par_path_sampling_tosqlite(uvs, pos_samples, k, chunk_size, path, table, False, pbar.update)
 
 if __name__ == "__main__":
     # output file should be avaliable at https://www.kaggle.com/code/xjq701229/simweight-neg-sample

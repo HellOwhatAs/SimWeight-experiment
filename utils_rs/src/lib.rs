@@ -194,7 +194,7 @@ impl DiGraph {
         result
     }
 
-    pub fn par_path_sampling_tosqlite(&self, uvs: Vec<(usize, usize)>, pos_samples: Vec<Vec<Vec<usize>>>, k: usize, chunk_size: usize, path: &str, table: &str, delete: bool) {
+    pub fn par_path_sampling_tosqlite(&self, uvs: Vec<(usize, usize)>, pos_samples: Vec<Vec<Vec<usize>>>, k: usize, chunk_size: usize, path: &str, table: &str, delete: bool, callback: Option<Py<PyAny>>) {
         let mut db = Sqlite::new(path, Some(delete));
         std::iter::zip(uvs.chunks(chunk_size), pos_samples.chunks(chunk_size)).for_each(|(uvs, pos_samples)| {
             let batch: Vec<Vec<u8>> = uvs.par_iter().zip(pos_samples).map(|(&(u, v), samples)| {
@@ -202,6 +202,11 @@ impl DiGraph {
             }).collect();
             let data = uvs.iter().zip(batch).map(|(&(u, v), sample)| (u, v, sample)).collect();
             db.insert_btyes(table, data);
+            if let Some(f) = &callback {
+                Python::with_gil(|py| {
+                    f.call1(py, (uvs.len(),)).unwrap();
+                });
+            }
         });
     }
 
