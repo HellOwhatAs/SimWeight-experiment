@@ -9,7 +9,7 @@ use std::collections::HashSet;
 
 #[pyclass]
 pub struct Sqlite {
-    conn: Option<Connection>
+    conn: Connection
 }
 
 impl Sqlite {
@@ -60,27 +60,30 @@ impl Sqlite {
             (true, false) => Connection::open(db_path).expect("Open-db failed"),
             (false, _) => Self::init(db_path)
         };
-        Sqlite { conn: Some(conn) }
+        Sqlite { conn }
     }
 
-    pub fn insert_btyes(&self, table: &str, data: (usize, usize, Vec<u8>)) {
+    pub fn insert_btyes(&mut self, table: &str, data: Vec<(usize, usize, Vec<u8>)>) {
         assert!(["train", "test", "valid"].contains(&table));
-        self.conn.as_ref().expect("Connection dead").execute(
-            &format!("INSERT INTO {table} VALUES (?1, ?2, ?3)"),
-            data,
-        ).expect("Insert failed");
+        let transaction = self.conn.transaction().expect("Initialize transaction failed");
+        for data in data {
+            transaction.execute(
+                &format!("INSERT INTO {table} VALUES (?1, ?2, ?3)"),
+                data,
+            ).expect("Insert failed");
+        }
+        transaction.commit().expect("Transaction commit failed");
     }
 
-    pub fn insert(&self, table: &str,  u: usize, v: usize, samples: Vec<Vec<usize>>) {
+    pub fn insert(&mut self, table: &str,  u: usize, v: usize, samples: Vec<Vec<usize>>) {
         assert!(["train", "test", "valid"].contains(&table));
         let blob = Self::serialize(&samples);
-        self.insert_btyes(table, (u, v, blob))
+        self.insert_btyes(table, vec![(u, v, blob)])
     }
 
     pub fn get_bytes(&self, table: &str, u: usize, v: usize) -> Option<Vec<u8>> {
         assert!(["train", "test", "valid"].contains(&table));
-        let binding = self.conn.as_ref().expect("Connection dead");
-        let mut stmt = binding.prepare(&format!("SELECT data FROM {table} WHERE u = ?1 AND v = ?2")).expect("Sql failed");
+        let mut stmt = self.conn.prepare(&format!("SELECT data FROM {table} WHERE u = ?1 AND v = ?2")).expect("Sql failed");
         let mut binding = stmt.query([u, v]).expect("Binding parameters failed");
         let rows = binding.next().expect(&format!("({u}, {v}) not found"))?;
         let blob: Vec<u8> = rows.get(0).unwrap();
@@ -192,14 +195,13 @@ impl DiGraph {
     }
 
     pub fn par_path_sampling_tosqlite(&self, uvs: Vec<(usize, usize)>, pos_samples: Vec<Vec<Vec<usize>>>, k: usize, chunk_size: usize, path: &str, table: &str, delete: bool) {
-        let db = Sqlite::new(path, Some(delete));
+        let mut db = Sqlite::new(path, Some(delete));
         std::iter::zip(uvs.chunks(chunk_size), pos_samples.chunks(chunk_size)).for_each(|(uvs, pos_samples)| {
             let batch: Vec<Vec<u8>> = uvs.par_iter().zip(pos_samples).map(|(&(u, v), samples)| {
                 Sqlite::serialize(&self.path_sampling(u, v, samples.clone(), k, None))
             }).collect();
-            batch.into_iter().zip(uvs).for_each(|(samples, &(u, v))| {
-                db.insert_btyes(table, (u, v, samples))
-            });
+            let data = uvs.iter().zip(batch).map(|(&(u, v), sample)| (u, v, sample)).collect();
+            db.insert_btyes(table, data);
         });
     }
 

@@ -75,7 +75,7 @@ class Sqlite:
         Connect to database
         """
     
-    def insert_btyes(self, table: str, data: Tuple[int, int, bytes]) -> None:
+    def insert_btyes(self, table: str, data: List[Tuple[int, int, bytes]]) -> None:
         ...
 
     def insert(self, table: str, u: int, v: int, samples: List[List[int]]) -> None:
