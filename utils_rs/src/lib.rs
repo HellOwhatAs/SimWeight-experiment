@@ -37,6 +37,14 @@ impl Sqlite {
         ).expect("Init-db failed");
         conn
     }
+
+    fn serialize(samples: &Vec<Vec<usize>>) -> Vec<u8> {
+        serialize(samples).expect("Serialization failed")
+    }
+
+    fn deserialize(blob: &Vec<u8>) -> Vec<Vec<usize>> {
+        deserialize(blob).expect("Deserialize failed")
+    }
 }
 
 #[pymethods]
@@ -65,7 +73,7 @@ impl Sqlite {
 
     pub fn insert(&self, table: &str,  u: usize, v: usize, samples: Vec<Vec<usize>>) {
         assert!(["train", "test", "valid"].contains(&table));
-        let blob = serialize(&samples).expect("Serialization failed");
+        let blob = Self::serialize(&samples);
         self.insert_btyes(table, (u, v, blob))
     }
 
@@ -82,16 +90,20 @@ impl Sqlite {
     pub fn get(&self, table: &str, u: usize, v: usize) -> Option<Vec<Vec<usize>>> {
         assert!(["train", "test", "valid"].contains(&table));
         let blob = self.get_bytes(table, u, v)?;
-        let samples: Vec<Vec<usize>> = deserialize(&blob).expect("Deserialize failed");
+        let samples: Vec<Vec<usize>> = Self::deserialize(&blob);
         Some(samples)
     }
 }
 
 #[pyclass]
 struct DiGraph {
+    #[pyo3(get)]
     n: usize,
+    #[pyo3(get)]
     edges: Vec<(usize, usize)>,
+    #[pyo3(get)]
     adjlist: Vec<Vec<(usize, usize)>>,
+    #[pyo3(get)]
     weight: Option<Vec<f64>>
 }
 
@@ -117,15 +129,6 @@ impl DiGraph {
         }
         Self { n, edges, adjlist, weight }
     }
-    #[getter]
-    fn n(&self) -> PyResult<usize> { Ok(self.n) }
-    #[getter]
-    fn edges(&self) -> PyResult<Vec<(usize, usize)>> { Ok(self.edges.clone()) }
-    #[getter]
-    fn adjlist(&self) -> PyResult<Vec<Vec<(usize, usize)>>> { Ok(self.adjlist.clone()) }
-    #[getter]
-    fn weight(&self) -> PyResult<Vec<f64>> { Ok(self.weight.clone().expect("weight unspecified")) }
-
 
     pub fn dijkstra(&self, u: usize, v: usize, weight: Option<Vec<f64>>) -> Option<(Vec<usize>, f64)> {
         let weight = Self::determin_weight(&self.weight, &weight).expect("must specify weight");
@@ -188,8 +191,16 @@ impl DiGraph {
         result
     }
 
-    pub fn par_path_sampling(&self, uvs: Vec<(usize, usize)>, pos_samples: Vec<Vec<Vec<usize>>>, k: usize) -> Vec<Vec<Vec<usize>>> {
-        uvs.into_par_iter().zip(pos_samples).map(|((u, v), pos_samples)| self.path_sampling(u, v, pos_samples, k, None)).collect()
+    pub fn par_path_sampling_tosqlite(&self, uvs: Vec<(usize, usize)>, pos_samples: Vec<Vec<Vec<usize>>>, k: usize, chunk_size: usize, path: &str, table: &str, delete: bool) {
+        let db = Sqlite::new(path, Some(delete));
+        std::iter::zip(uvs.chunks(chunk_size), pos_samples.chunks(chunk_size)).for_each(|(uvs, pos_samples)| {
+            let batch: Vec<Vec<u8>> = uvs.par_iter().zip(pos_samples).map(|(&(u, v), samples)| {
+                Sqlite::serialize(&self.path_sampling(u, v, samples.clone(), k, None))
+            }).collect();
+            batch.into_iter().zip(uvs).for_each(|(samples, &(u, v))| {
+                db.insert_btyes(table, (u, v, samples))
+            });
+        });
     }
 
     pub fn experiment(&self, trips: Vec<Vec<usize>>, weight: Option<Vec<f64>>) -> usize {

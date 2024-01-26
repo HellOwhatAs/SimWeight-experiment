@@ -53,9 +53,9 @@ class DiGraph:
         sample at most k paths from u to v that not in pos_samples
         """
 
-    def par_path_sampling(self, uvs: List[Tuple[int, int]], pos_samples: List[List[List[int]]], k: int) -> List[List[List[int]]]:
+    def par_path_sampling_tosqlite(self, uvs: List[Tuple[int, int]], pos_samples: List[List[List[int]]], k: int, chunk_size: int, path: str, table: str, delete: bool) -> None:
         """
-        parallel version of path_sampling
+        parallel version of path_sampling that outputs to a sqlite db file
         """
 
     def experiment(self, trips: List[List[int]], weight: Optional[List[int]] = None) -> int:
