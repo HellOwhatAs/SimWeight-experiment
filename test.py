@@ -64,4 +64,26 @@ def test_db():
     import os
     os.remove("tmp.db")
 
-test_db()
+def vis_neg_samples():
+    from neg_sample import SampleLoader
+    sql = SampleLoader("./beijing.db", "train")
+    u, v = 5625, 9249
+    map = vis_map.base_edge_map(nodes, edges,
+        tiles= 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7',
+        attr='高德-常规图')
+    
+    pos_edges = set(more_itertools.flatten(trips["train"][(u, v)]))
+    neg_edges = set(more_itertools.flatten(sql.get(u, v)))
+
+    vis_map.add_edges(map, nodes, edges, pos_edges)
+    vis_map.add_edges(map, nodes, edges, neg_edges, color="#00FF00")
+    vis_map.add_edges(map, nodes, edges, pos_edges & neg_edges, color="#FF00FF")
+
+    vis_map.add_nodes(map, nodes, {
+        u: f"start: {u}",
+        v: f"target: {v}"
+    })
+    map.save("tmp1.html")
+
+
+vis_neg_samples()

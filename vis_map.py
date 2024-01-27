@@ -40,6 +40,7 @@ def add_trips(m: folium.Map, nodes: pd.DataFrame, edges: pd.DataFrame, trips: Li
             if idx == 0: trip_loc.append((nodes.loc[u]['y'], nodes.loc[u]['x']))
             trip_loc.append((nodes.loc[v]['y'], nodes.loc[v]['x']))
         trip_locations.append(trip_loc)
+    if not trip_locations: return
     folium.PolyLine(
         locations=trip_locations,
         color=color,
@@ -60,6 +61,7 @@ def add_edges(m: folium.Map, nodes: pd.DataFrame, edges: pd.DataFrame, edge_ids:
         edge = edges.loc[edge_id]
         u, v = edge['u'], edge['v']
         edge_locations.append([(nodes.loc[u]['y'], nodes.loc[u]['x']), (nodes.loc[v]['y'], nodes.loc[v]['x'])])
+    if not edge_locations: return
     
     folium.PolyLine(
         locations=edge_locations,
