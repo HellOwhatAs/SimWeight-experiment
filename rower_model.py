@@ -44,6 +44,7 @@ if __name__ == "__main__":
     from extract_data import Result
     import pickle
     from tqdm import tqdm
+    from neg_sample import SampleLoader
     import warnings
 
     device = torch.device("cuda")
@@ -57,17 +58,19 @@ if __name__ == "__main__":
 
     model = Rower(edges).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-    graph = utils_rs.DiGraph(nodes.shape[0], [(i['u'], i['v']) for _, i in edges.iterrows()], edges["length"])
+    neg = SampleLoader("./beijing.db", "test")
     
     model.train()
-    for (u, v), positive_samples in trips["test"].items():
+    count = 0
+    for (u, v), positive_samples in (pbar := tqdm(trips["test"].items())):
         trips_input = [torch.LongTensor(trip).to(device) for trip in positive_samples]
         positive_lengths = model(trips_input)
-        negative_samples = graph.yen_drop(positive_samples, u, v, 200)
-        trips_input = [torch.LongTensor(trip).to(device) for trip, _ in negative_samples]
+        negative_samples = neg.get(u, v)
+        trips_input = [torch.LongTensor(trip).to(device) for trip in negative_samples]
+        if not trips_input: continue # not exist negative samples
         negative_lengths = model(trips_input)
         loss = bpr_loss_reverse(positive_lengths, negative_lengths)
-        print(loss)
+        pbar.set_postfix_str(f"loss={loss.item():.4f}", False)
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()

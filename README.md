@@ -29,6 +29,7 @@ python -m venv .venv
 
 - give up Yen's Algorithm due to it's time complexity
 
+### Discussion 2024.1.27
+- the time complexity of bidirection dijkstra is equal to dijkstra 😨
+
 ## TODO
-- currently negative sampling using (at least) k dijkstra (, after each dijkstra filter out the middle edge of path)
-  any better?
