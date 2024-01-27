@@ -2,4 +2,5 @@ __pycache__/
 .venv/
 preprocessed_data/
 *.pkl
+*.db
 *.html
