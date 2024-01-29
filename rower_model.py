@@ -1,4 +1,4 @@
-from typing import Tuple, Union, List, Callable, Dict
+from typing import Tuple, Union, List
 from more_itertools import pairwise, flatten
 import utils_rs
 import pandas as pd
@@ -44,7 +44,6 @@ if __name__ == "__main__":
     from extract_data import Result
     import pickle
     from tqdm import tqdm
-    from neg_sample import SampleLoader
     import warnings
 
     device = torch.device("cuda")
@@ -58,14 +57,14 @@ if __name__ == "__main__":
 
     model = Rower(edges).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-    neg = SampleLoader("./beijing.db", "test")
     
     model.train()
     count = 0
     for (u, v), positive_samples in (pbar := tqdm(trips["test"].items())):
         trips_input = [torch.LongTensor(trip).to(device) for trip in positive_samples]
         positive_lengths = model(trips_input)
-        negative_samples = neg.get(u, v)
+        # negative_samples = 
+        raise NotImplementedError
         trips_input = [torch.LongTensor(trip).to(device) for trip in negative_samples]
         if not trips_input: continue # not exist negative samples
         negative_lengths = model(trips_input)
