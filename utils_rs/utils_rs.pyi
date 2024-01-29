@@ -60,6 +60,18 @@ class DiGraph:
             List[(path: List[edge_idx], cost)]
         """
 
+    def par_bidirectional_dijkstra_tosqlite(self, uvs: List[Tuple[int, int]], pos_samples: List[List[List[int]]], k: int, chunk_size: int, path: str, table: str, delete: bool, callback: Optional[Callable[[int], None]]) -> None:
+        """
+        parallel version of path_sampling that outputs to a sqlite db file
+
+        Args:
+            chunk_size: batch size each commit to sqlite
+            path: file path of database
+            table: table name in database
+            delete: whether or not delete the existing db file
+            callback: called after commit, the input would be the size of the chunk
+        """
+
     def experiment(self, trips: List[List[int]], weight: Optional[List[int]] = None) -> int:
         """
         Args:
@@ -69,3 +81,22 @@ class DiGraph:
         Returns:
             int: num of trips that is shortest path under weight
         """
+
+
+class Sqlite:
+    def __init__(self, db_path: str, delete = True) -> None:
+        """
+        Connect to database
+        """
+    
+    def insert_btyes(self, table: str, data: List[Tuple[int, int, int, bytes]]) -> None:
+        ...
+
+    def insert(self, table: str, u: int, v: int, samples: List[List[int]]) -> None:
+        ...
+
+    def get_bytes(self, table: str, u: int, v: int) -> Optional[Tuple[int, bytes]]:
+        ...
+
+    def get(self, table: str, u: int, v: int) -> Optional[List[List[int]]]:
+        ...

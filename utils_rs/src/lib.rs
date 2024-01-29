@@ -1,8 +1,117 @@
 use std::{cmp::Reverse, collections::{BinaryHeap, HashSet}};
+use rusqlite::Connection;
+use bincode::{serialize, deserialize};
 use pyo3::prelude::*;
 use rayon::prelude::*;
 use pathfinding::prelude::{dijkstra_eid, yen_eid};
 use ordered_float::OrderedFloat;
+use std::io::{Read, Write};
+
+
+#[pyclass]
+pub struct Sqlite {
+    conn: Connection
+}
+
+impl Sqlite {
+    fn init(db_path: &str) -> Connection {
+        let conn = Connection::open(db_path).expect("Open-db failed");
+        conn.execute_batch(
+            "CREATE TABLE train (
+                u       INTEGER,
+                v       INTEGER,
+                length  INTEGER,
+                data    BLOB,
+                PRIMARY KEY (u, v)
+            );
+            CREATE TABLE test (
+                u       INTEGER,
+                v       INTEGER,
+                length  INTEGER,
+                data    BLOB,
+                PRIMARY KEY (u, v)
+            );
+            CREATE TABLE valid (
+                u       INTEGER,
+                v       INTEGER,
+                length  INTEGER,
+                data    BLOB,
+                PRIMARY KEY (u, v)
+            );"
+        ).expect("Init-db failed");
+        conn
+    }
+
+    fn serialize(samples: &Vec<Vec<usize>>) -> (usize, Vec<u8>) {
+        use flate2::Compression;
+        use flate2::write::ZlibEncoder;
+        let blob = serialize(samples).expect("Serialization failed");
+        let length = blob.len();
+        let mut e = ZlibEncoder::new(Vec::new(), Compression::default());
+        e.write_all(&blob).expect("Compress failed");
+        (length, e.finish().expect("Finish ZlibEncoder failed"))
+    }
+
+    fn deserialize(length: usize, c: &Vec<u8>) -> Vec<Vec<usize>> {
+        use flate2::read::ZlibDecoder;
+        let mut d = ZlibDecoder::new(&**c);
+        let mut blob = vec![0; length];
+        d.read(&mut blob).expect("Decompress failed");
+        deserialize(&blob).expect("Deserialize failed")
+    }
+}
+
+#[pymethods]
+impl Sqlite {
+    #[new]
+    fn new(db_path: &str, delete: Option<bool>) -> Self {
+        let delete = match delete { Some(false) => false, _ => true };
+        let conn = match (std::path::Path::new(db_path).exists(), delete) {
+            (true, true) => {
+                std::fs::remove_file(db_path).expect("Delete Failed");
+                Self::init(db_path)
+            },
+            (true, false) => Connection::open(db_path).expect("Open-db failed"),
+            (false, _) => Self::init(db_path)
+        };
+        Sqlite { conn }
+    }
+
+    pub fn insert_btyes(&mut self, table: &str, data: Vec<(usize, usize, usize, Vec<u8>)>) {
+        assert!(["train", "test", "valid"].contains(&table));
+        let transaction = self.conn.transaction().expect("Initialize transaction failed");
+        for data in data {
+            transaction.execute(
+                &format!("INSERT INTO {table} VALUES (?1, ?2, ?3, ?4)"),
+                data,
+            ).expect("Insert failed");
+        }
+        transaction.commit().expect("Transaction commit failed");
+    }
+
+    pub fn insert(&mut self, table: &str,  u: usize, v: usize, samples: Vec<Vec<usize>>) {
+        assert!(["train", "test", "valid"].contains(&table));
+        let (length, blob) = Self::serialize(&samples);
+        self.insert_btyes(table, vec![(u, v, length, blob)])
+    }
+
+    pub fn get_bytes(&self, table: &str, u: usize, v: usize) -> Option<(usize, Vec<u8>)> {
+        assert!(["train", "test", "valid"].contains(&table));
+        let mut stmt = self.conn.prepare(&format!("SELECT length, data FROM {table} WHERE u = ?1 AND v = ?2")).expect("Sql failed");
+        let mut binding = stmt.query([u, v]).expect("Binding parameters failed");
+        let rows = binding.next().expect(&format!("({u}, {v}) not found"))?;
+        let length: usize = rows.get(0).unwrap();
+        let blob: Vec<u8> = rows.get(1).unwrap();
+        Some((length, blob))
+    }
+
+    pub fn get(&self, table: &str, u: usize, v: usize) -> Option<Vec<Vec<usize>>> {
+        assert!(["train", "test", "valid"].contains(&table));
+        let (length, blob) = self.get_bytes(table, u, v)?;
+        let samples: Vec<Vec<usize>> = Self::deserialize(length, &blob);
+        Some(samples)
+    }
+}
 
 #[pyclass]
 struct DiGraph {
@@ -151,6 +260,22 @@ impl DiGraph {
         self.yen(u, v, k, weight).into_iter().filter(|(positive_path, _)| !positive_samples_set.contains(positive_path)).collect()
     }
 
+    pub fn par_bidirectional_dijkstra_tosqlite(&self, uvs: Vec<(usize, usize)>, pos_samples: Vec<Vec<Vec<usize>>>, k: usize, chunk_size: usize, path: &str, table: &str, delete: bool, callback: Option<Py<PyAny>>) {
+        let mut db = Sqlite::new(path, Some(delete));
+        std::iter::zip(uvs.chunks(chunk_size), pos_samples.chunks(chunk_size)).for_each(|(uvs, pos_samples)| {
+            let batch: Vec<(usize, Vec<u8>)> = uvs.par_iter().zip(pos_samples).map(|(&(u, v), samples)| {
+                Sqlite::serialize(&self.bidirectional_dijkstra(samples.clone(), u, v, k, None))
+            }).collect();
+            let data = uvs.iter().zip(batch).map(|(&(u, v), (length, sample))| (u, v, length, sample)).collect();
+            db.insert_btyes(table, data);
+            if let Some(f) = &callback {
+                Python::with_gil(|py| {
+                    f.call1(py, (uvs.len(),)).unwrap();
+                });
+            }
+        });
+    }
+
     pub fn experiment(&self, trips: Vec<Vec<usize>>, weight: Option<Vec<f64>>) -> usize {
         let weight = Self::determin_weight(&self.weight, &weight).expect("must specify weight");
         let successors = |n: &usize| {
@@ -166,5 +291,6 @@ impl DiGraph {
 #[pymodule]
 fn utils_rs(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<DiGraph>()?;
+    m.add_class::<Sqlite>()?;
     Ok(())
 }
