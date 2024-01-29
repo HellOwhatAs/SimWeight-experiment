@@ -51,3 +51,21 @@ def test_map_case():
         max_val[0][1]: f"target: {max_val[0][1]}"
     })
     map.save("tmp.html")
+
+def test_neg_sample():
+    map = vis_map.base_edge_map(nodes, edges,
+        tiles= 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7',
+        attr='高德-常规图')
+    tmp = g.bidirectional_dijkstra([], 10893, 7595, 200)
+    vis_map.add_edges(map, nodes, edges, more_itertools.flatten(tmp))
+    vis_map.add_nodes(map, nodes, {
+        10893: "start",
+        7595: "target"
+    })
+    map.save("tmp1.html")
+
+def test_neg_sample_cost():
+    for (u, v), t in tqdm(trips["test"].items()):
+        g.bidirectional_dijkstra(t, u, v, 1)
+
+test_neg_sample_cost()

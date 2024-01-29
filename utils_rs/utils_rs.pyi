@@ -23,6 +23,18 @@ class DiGraph:
             None if target unreachable
         """
 
+    def bidirectional_dijkstra(self, positive_samples: List[List[int]], u: int, v: int, k: int = 1, weight: Optional[List[float]] = None) -> List[List[int]]:
+        """
+        Compute at most k paths using the Bidirectional Dijkstra search algorithm.
+        Args:
+            u: start vertex
+            v: target vertex
+            k: paths num
+            weight: `weight[edge_idx] = weight`
+        Returns:
+            List[path]
+        """
+
     def yen(self, u: int, v: int, k: int, weight: Optional[List[float]] = None) -> List[Tuple[List[int], float]]:
         """
         Compute the k-shortest paths using the Yen’s search algorithm.
