@@ -24,7 +24,7 @@ class SampleLoader:
 
 
 if __name__ == "__main__":
-    # output file avaliable at https://www.kaggle.com/code/xjq701229/simweight-neg-sample/
+    # output file avaliable at https://www.kaggle.com/code/xjq701229/simweight-neg-sample-beijing/
     with open("./beijing.pkl", "rb") as f:
         tmp: Result = pickle.load(f)
         (nodes, edges, trips) = tmp
