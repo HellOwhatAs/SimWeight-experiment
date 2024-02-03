@@ -2,6 +2,7 @@ from typing import Tuple, Union, List
 from more_itertools import pairwise, flatten
 import pandas as pd
 import torch
+from torch.nn.utils.rnn import PackedSequence, pack_sequence, pad_packed_sequence
 import numpy as np
 
 class WeightEmbedding(torch.nn.Module):
@@ -28,16 +29,18 @@ class WeightEmbedding(torch.nn.Module):
     
 class Rower(torch.nn.Module):
 
-    def __init__(self, edges: pd.DataFrame):
+    def __init__(self, edges: pd.DataFrame, attrs: List[str] = ["length"]):
         super().__init__()
-        self.edge_attrs = torch.nn.Parameter(torch.from_numpy(edges["length"].to_numpy(dtype=np.float32)).view(-1, 1), requires_grad=False)
-        self.edge_weight = WeightEmbedding(edges.shape[0], num_fields=(1, 16))
+        self.edge_attrs = torch.nn.Parameter(torch.from_numpy(edges[attrs].to_numpy(dtype=np.float32)).view(-1, len(attrs)), requires_grad=False)
+        self.edge_weight = WeightEmbedding(edges.shape[0], num_fields=(len(attrs), 16))
 
-    def forward(self, trips: List[torch.LongTensor]) -> torch.Tensor:
-        return torch.stack([self.edge_weight(trip.view(-1, 1), self.edge_attrs[trip]).sum() for trip in trips])
+    def forward(self, trips: PackedSequence) -> torch.Tensor:
+        res: torch.Tensor = self.edge_weight(trips.data.view(-1, 1), self.edge_attrs[trips.data])
+        tmp = pad_packed_sequence(PackedSequence(res.squeeze(), trips.batch_sizes, trips.sorted_indices, trips.unsorted_indices), batch_first=True)[0]
+        return tmp.sum(dim=1)
     
-def bpr_loss_reverse(positive_lengths: torch.Tensor, negative_lengths: torch.Tensor) -> torch.Tensor:
-    return -torch.nn.functional.logsigmoid(negative_lengths.unsqueeze(1) - positive_lengths).sum()
+def bpr_loss_reverse(lengths: torch.Tensor, k: int) -> torch.Tensor:
+    return -torch.nn.functional.logsigmoid(lengths[k:].unsqueeze(1) - lengths[:k]).sum()
 
 if __name__ == "__main__":
     from extract_data import Result
@@ -60,15 +63,10 @@ if __name__ == "__main__":
     neg = SampleLoader("./beijing.db", "test")
     
     model.train()
-    count = 0
     for (u, v), positive_samples in (pbar := tqdm(trips["test"].items())):
-        trips_input = [torch.LongTensor(trip).to(device) for trip in positive_samples]
-        positive_lengths = model(trips_input)
-        negative_samples = neg.get(u, v)
-        trips_input = [torch.LongTensor(trip).to(device) for trip in negative_samples]
-        if not trips_input: continue # not exist negative samples
-        negative_lengths = model(trips_input)
-        loss = bpr_loss_reverse(positive_lengths, negative_lengths)
+        trips_input = pack_sequence([*(torch.LongTensor(trip) for trip in positive_samples), *(torch.LongTensor(trip) for trip in (neg.get(u, v)) if trip)], enforce_sorted=False).to(device)
+        lengths = model(trips_input)
+        loss = bpr_loss_reverse(lengths, len(positive_samples))
         pbar.set_postfix_str(f"loss={loss.item():.4f}", False)
         loss.backward()
         optimizer.step()
