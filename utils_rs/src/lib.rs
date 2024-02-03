@@ -149,27 +149,6 @@ impl DiGraph {
         path.push(eid);
         path
     }
-    fn remove_loops(&self, path: Vec<usize>) -> Vec<usize> {
-        let mut vis = HashSet::new();
-        let mut res = vec![];
-        if let Some(eid) = path.first() {
-            vis.insert(self.edges[*eid].0);
-        } else { return res; }
-        for eid in path {
-            let t = self.edges[eid].1;
-            if !vis.contains(&t) {
-                res.push(eid);
-                vis.insert(t);
-            }
-            else {
-                while let Some(eid) = res.last() {
-                    if self.edges[*eid].1 != t { res.pop().unwrap(); }
-                    else { break; }
-                }
-            }
-        }
-        res
-    }
 }
 
 
@@ -231,7 +210,6 @@ impl DiGraph {
             let mut path2 = self.rextract_path(idx, &prev_b);
             path2.reverse();
             path.append(&mut path2);
-            path = self.remove_loops(path);
             if !filter.contains(&path) {
                 res.insert(path);
             }
