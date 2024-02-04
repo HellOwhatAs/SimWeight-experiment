@@ -65,6 +65,7 @@ def bpr_loss_reverse(lengths: torch.Tensor, sep: List[Tuple[int, int]]) -> torch
 if __name__ == "__main__":
     from extract_data import Result
     import pickle
+    import os, time
     from tqdm import tqdm
     import warnings
     import utils_rs, more_itertools
@@ -82,16 +83,17 @@ if __name__ == "__main__":
 
     g = utils_rs.DiGraph(nodes.shape[0], [(i['u'], i['v']) for _, i in edges.iterrows()], edges["length"])
     model = Rower(edges).to(device)
+    if os.path.isfile('model_weights.pth'):
+        model.load_state_dict(torch.load('model_weights.pth'))
     optimizer = torch.optim.Adam(model.parameters())
     neg = SampleLoader("./beijing.db", "test")
-
-    samples = list(more_itertools.flatten(trips_test.values()))
-    weight = model.get_weight().flatten().tolist()
-    print(g.experiment(samples, weight))
+    acc_samples = list(more_itertools.flatten(trips_test.values()))
+    accs: List[int] = []
+    start_time = time.time()
 
     model.train()
-    for _ in range(200):
-        for chunk in more_itertools.chunked(pbar := tqdm(trips_test.items()), 16276):
+    for epoch in range(250):
+        for chunk in more_itertools.chunked(pbar := tqdm(trips_test.items(), desc=f"epoch: {epoch}({time.time() - start_time}s)"), 16276):
             seq, sep = batch_trips(chunk, neg)
             trips_input = pack_sequence(seq, enforce_sorted=False).to(device)
             lengths = model(trips_input)
@@ -101,6 +103,13 @@ if __name__ == "__main__":
             optimizer.step()
             optimizer.zero_grad()
 
-        model.eval()
         weight = model.get_weight().flatten().tolist()
-        print(g.experiment(samples, weight))
+        acc = g.experiment(acc_samples, weight)
+        print(acc)
+        accs.append(acc)
+
+    torch.save(model.state_dict(), 'model_weights.pth')
+    
+    with open("accs.txt", "a") as f:
+        f.write(" ".join(map(str, accs)))
+        f.write(f'\n#{time.time() - start_time}\n')

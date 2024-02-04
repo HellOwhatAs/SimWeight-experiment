@@ -4,3 +4,5 @@ preprocessed_data/
 *.pkl
 *.db
 *.html
+accs.txt
+*.pth
