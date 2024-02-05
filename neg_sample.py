@@ -1,4 +1,4 @@
-from typing import Literal, Optional
+from typing import Literal, Optional, List, Tuple
 from extract_data import Result, Trips
 import pickle, sys
 import utils_rs
@@ -21,6 +21,9 @@ class SampleLoader:
     def get(self, u: int, v: int, table: Optional[Table] = None):
         selected_table = self.default_table if table is None else table
         return self.sqlite.get(selected_table, u, v)
+    
+    def keys(self) -> List[Tuple[int, int]]:
+        return self.sqlite.keys(self.default_table)
 
 
 if __name__ == "__main__":

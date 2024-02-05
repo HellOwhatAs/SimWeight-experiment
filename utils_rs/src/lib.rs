@@ -111,6 +111,15 @@ impl Sqlite {
         let samples: Vec<Vec<usize>> = Self::deserialize(length, &blob);
         Some(samples)
     }
+
+    pub fn keys(&self, table: &str) -> Vec<(usize, usize)> {
+        let mut stmt = self.conn.prepare(&format!("SELECT u, v FROM {table}")).expect("Sql failed");
+        let person_iter = stmt.query_map([], |row| {
+            let (u, v): (usize, usize) = (row.get(0).unwrap(), row.get(1).unwrap());
+            Ok((u, v))
+        }).expect("Binding parameters fails");
+        person_iter.map(Result::unwrap).collect()
+    }
 }
 
 #[pyclass]
@@ -180,7 +189,6 @@ impl DiGraph {
         dis_f[u] = OrderedFloat(0.0); dis_b[v] = OrderedFloat(0.0);
         let (mut prev_f, mut prev_b) = (vec![None; self.n], vec![None; self.n]);
         let (mut pq_f, mut pq_b) = (BinaryHeap::from([Reverse((OrderedFloat(0.0), u))]), BinaryHeap::from([Reverse((OrderedFloat(0.0), v))]));
-        let mut mu = OrderedFloat(f64::INFINITY);
         while let (Some(Reverse((OrderedFloat(df), f))), Some(Reverse((OrderedFloat(db), b)))) = (pq_f.pop(), pq_b.pop()) {
             for &(s, eid) in &self.radjlist[b] {
                 let new_dist = OrderedFloat(db + weight[eid]);
@@ -189,7 +197,6 @@ impl DiGraph {
                     prev_b[s] = Some(eid);
                     pq_b.push(Reverse((new_dist, s)));
                 }
-                mu = std::cmp::min(mu, new_dist + dis_f[s]);
             }
             for &(t, eid) in &self.adjlist[f] {
                 let new_dist = OrderedFloat(df + weight[eid]);
@@ -198,7 +205,6 @@ impl DiGraph {
                     prev_f[t] = Some(eid);
                     pq_f.push(Reverse((new_dist, t)));
                 }
-                mu = std::cmp::min(mu, new_dist + dis_b[t]);
             }
         }
         let mut kmin = BinaryHeap::from_iter((0..self.n).map(|idx| Reverse((dis_f[idx] + dis_b[idx], idx))));

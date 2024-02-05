@@ -100,3 +100,6 @@ class Sqlite:
 
     def get(self, table: str, u: int, v: int) -> Optional[List[List[int]]]:
         ...
+
+    def keys(self, table: str) -> List[Tuple[int, int]]:
+        ...
