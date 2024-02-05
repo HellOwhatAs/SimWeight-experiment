@@ -82,6 +82,9 @@ class DiGraph:
             int: num of (u, v) that match shortest path under weight
         """
 
+    def experiment_num(self, trips: Dict[Tuple[int, int], List[List[int]]], weight: Optional[List[int]] = None) -> int:
+        ...
+
     def experiment_old(self, trips: List[List[int]], weight: Optional[List[int]] = None) -> int:
         """
         Args:
