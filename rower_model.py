@@ -14,7 +14,7 @@ class WeightEmbedding(torch.nn.Module):
             *flatten([(torch.nn.Linear(i, o), torch.nn.ReLU()) for i, o in pairwise(num_fields)]),
             torch.nn.Linear(num_fields[-1], 1)
         ) if num_fields is not None else None
-        self.weight = torch.nn.Parameter(torch.rand((num_edges, )))
+        self.weight = torch.nn.Parameter(torch.zeros((num_edges, )))
 
     def forward(self, idx: torch.Tensor, field: Union[torch.Tensor, None] = None) -> torch.Tensor:
         """
@@ -26,7 +26,7 @@ class WeightEmbedding(torch.nn.Module):
         assert (field is None) == (self.embedding is None), "`field` must consistent with `num_fields` in constructor"
         if self.embedding is not None and field is not None:
             res += self.embedding(field)
-        return res.sigmoid()
+        return res.exp()
     
 class Rower(torch.nn.Module):
 
