@@ -12,12 +12,18 @@ with open("./beijing.pkl", "rb") as f:
     (nodes, edges, trips) = tmp
     g = utils_rs.DiGraph(nodes.shape[0], [(i['u'], i['v']) for _, i in edges.iterrows()], edges["length"])
 
-def test_length_acc():
+def test_length_acc_old():
     trips_test = list(more_itertools.flatten(trips["test"].values()))
     t = time.time()
-    res = g.experiment(trips_test)
+    res = g.experiment_old(trips_test)
     print(time.time() - t)
     print(res / len(trips_test))
+
+def test_length_acc():
+    t = time.time()
+    res = g.experiment(trips["test"])
+    print(time.time() - t)
+    print(res / len(trips["test"]))
 
 def test_yen():
     map = vis_map.base_edge_map(nodes, edges,
@@ -107,4 +113,4 @@ def test_neg_samples_valid():
             assert all(edges_loc[a][1] == edges_loc[b][0] for a, b in more_itertools.pairwise(trip)), (u, v)
             assert edges_loc[trip[0]][0] == u and edges_loc[trip[-1]][1] == v, (u, v)
 
-test_neg_samples_valid()
+test_length_acc()
