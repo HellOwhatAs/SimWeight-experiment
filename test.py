@@ -97,5 +97,14 @@ def vis_neg_samples():
     })
     map.save("tmp1.html")
 
+def test_neg_samples_valid():
+    from neg_sample import SampleLoader
+    sql = SampleLoader("./beijing.db", "test")
+    edges_loc = edges[["u", "v"]].to_numpy().tolist()
+    for u, v in tqdm(sql.keys()):
+        samples = sql.get(u, v)
+        for trip in samples:
+            assert all(edges_loc[a][1] == edges_loc[b][0] for a, b in more_itertools.pairwise(trip)), (u, v)
+            assert edges_loc[trip[0]][0] == u and edges_loc[trip[-1]][1] == v, (u, v)
 
-vis_neg_samples()
+test_neg_samples_valid()
