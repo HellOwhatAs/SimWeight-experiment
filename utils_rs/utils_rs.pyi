@@ -1,4 +1,4 @@
-from typing import List, Tuple, Optional, Callable
+from typing import List, Tuple, Optional, Callable, Dict
 
 class DiGraph:
     def __init__(self, n: int, edges: List[Tuple[int, int]], weight: Optional[List[float]] = None) -> None:
@@ -71,8 +71,18 @@ class DiGraph:
             delete: whether or not delete the existing db file
             callback: called after commit, the input would be the size of the chunk
         """
+    
+    def experiment(self, trips: Dict[Tuple[int, int], List[List[int]]], weight: Optional[List[int]] = None) -> int:
+        """
+        Args:
+            trips: `Dict[(u, v), List[trip]]` where `trip = [edge_idx, ...]`
+            weight: `weight[edge_idx]` is the weight of the `edge_idx` edge
 
-    def experiment(self, trips: List[List[int]], weight: Optional[List[int]] = None) -> int:
+        Returns:
+            int: num of (u, v) that match shortest path under weight
+        """
+
+    def experiment_old(self, trips: List[List[int]], weight: Optional[List[int]] = None) -> int:
         """
         Args:
             trips: `[trip1, ..., tripn]` where `trip = [edge_idx, ...]`

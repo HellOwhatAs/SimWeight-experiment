@@ -87,7 +87,6 @@ if __name__ == "__main__":
         model.load_state_dict(torch.load('model_weights.pth'))
     optimizer = torch.optim.Adam(model.parameters())
     neg = SampleLoader("./beijing.db", "test")
-    acc_samples = list(more_itertools.flatten(trips_test.values()))
     accs: List[int] = []
     start_time = time.time()
 
@@ -104,7 +103,7 @@ if __name__ == "__main__":
             optimizer.zero_grad()
 
         weight = model.get_weight().flatten().tolist()
-        acc = g.experiment(acc_samples, weight)
+        acc = g.experiment(trips_test, weight)
         print(acc)
         accs.append(acc)
 

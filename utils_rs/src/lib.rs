@@ -1,4 +1,4 @@
-use std::{cmp::Reverse, collections::{BinaryHeap, HashSet}};
+use std::{cmp::Reverse, collections::{BinaryHeap, HashMap, HashSet}};
 use rusqlite::Connection;
 use bincode::{serialize, deserialize};
 use pyo3::prelude::*;
@@ -260,7 +260,19 @@ impl DiGraph {
         });
     }
 
-    pub fn experiment(&self, trips: Vec<Vec<usize>>, weight: Option<Vec<f64>>) -> usize {
+    pub fn experiment(&self, trips: HashMap<(usize, usize), Vec<Vec<usize>>>, weight: Option<Vec<f64>>) -> usize {
+        let weight = Self::determin_weight(&self.weight, &weight).expect("must specify weight");
+        let successors = |n: &usize| {
+            self.adjlist[*n].iter().map(|(t, edge_idx)| (*t, OrderedFloat(weight[*edge_idx]), *edge_idx))
+        };
+        trips.into_par_iter().map(|((u, v), trips)| {
+            let trips: HashSet<&Vec<usize>> = HashSet::from_iter(trips.iter());
+            let (pred, _) = dijkstra_eid(&u, successors, |p| *p == v).unwrap();
+            trips.contains(&pred) as usize
+        }).sum()
+    }
+    
+    pub fn experiment_old(&self, trips: Vec<Vec<usize>>, weight: Option<Vec<f64>>) -> usize {
         let weight = Self::determin_weight(&self.weight, &weight).expect("must specify weight");
         let successors = |n: &usize| {
             self.adjlist[*n].iter().map(|(t, edge_idx)| (*t, OrderedFloat(weight[*edge_idx]), *edge_idx))
