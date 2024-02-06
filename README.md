@@ -33,3 +33,6 @@ python -m venv .venv
 - the time complexity of bidirection dijkstra is equal to dijkstra 😨
 
 ## TODO
+- exist multiple shortest paths: does it match the requirement?
+- smaller case to debug
+- dynamic negative sampling
