@@ -95,6 +95,9 @@ class DiGraph:
             int: num of trips that is shortest path under weight
         """
 
+    def experiment_cme(self, trips: List[List[int]], weight: Optional[List[int]] = None) -> int:
+        ...
+
 
 class Sqlite:
     def __init__(self, db_path: str, delete = True) -> None:

@@ -294,6 +294,18 @@ impl DiGraph {
             (pred == trip) as usize
         }).sum()
     }
+
+    pub fn experiment_cme(&self, trips: Vec<Vec<usize>>, weight: Option<Vec<f64>>) -> usize {
+        let weight = Self::determin_weight(&self.weight, &weight).expect("must specify weight");
+        let successors = |n: &usize| {
+            self.adjlist[*n].iter().map(|(t, edge_idx)| (*t, OrderedFloat(weight[*edge_idx]), *edge_idx))
+        };
+        trips.into_par_iter().map(|trip| {
+            let d: OrderedFloat<f64> = trip.iter().map(|eid| OrderedFloat(weight[*eid])).sum();
+            let (_, f) = dijkstra_eid(&self.edges[*trip.first().unwrap()].0, successors, |p| *p == self.edges[*trip.last().unwrap()].1).unwrap();
+            (d == f) as usize
+        }).sum()
+    }
 }
 
 #[pymodule]
