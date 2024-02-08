@@ -113,4 +113,10 @@ def test_neg_samples_valid():
             assert all(edges_loc[a][1] == edges_loc[b][0] for a, b in more_itertools.pairwise(trip)), (u, v)
             assert edges_loc[trip[0]][0] == u and edges_loc[trip[-1]][1] == v, (u, v)
 
-test_length_acc()
+def test_g_weight_set():
+    weight = g.weight
+    g.weight = [0] * len(g.edges)
+    assert all(i == 0 for i in g.weight)
+    g.weight = weight
+
+test_g_weight_set()

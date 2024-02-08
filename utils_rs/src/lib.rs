@@ -131,7 +131,7 @@ struct DiGraph {
     #[pyo3(get)]
     adjlist: Vec<Vec<(usize, usize)>>,
     radjlist: Vec<Vec<(usize, usize)>>,
-    #[pyo3(get)]
+    #[pyo3(get, set)]
     weight: Option<Vec<f64>>
 }
 
@@ -242,6 +242,13 @@ impl DiGraph {
     pub fn yen_drop(&self, positive_samples: Vec<Vec<usize>>, u: usize, v: usize, k: usize, weight: Option<Vec<f64>>) -> Vec<(Vec<usize>, f64)> {
         let positive_samples_set: HashSet<&Vec<usize>> = HashSet::from_iter(positive_samples.iter());
         self.yen(u, v, k, weight).into_iter().filter(|(positive_path, _)| !positive_samples_set.contains(positive_path)).collect()
+    }
+
+    pub fn par_bidirectional_dijkstra(&self, chunk: Vec<((usize, usize), Vec<Vec<usize>>)>) -> Vec<Vec<Vec<usize>>> {
+        chunk.into_par_iter().map(|((u, v), samples)| {
+            let k = samples.len();
+            self.bidirectional_dijkstra(samples, u, v, k, None)
+        }).collect()
     }
 
     pub fn par_bidirectional_dijkstra_tosqlite(&self, uvs: Vec<(usize, usize)>, pos_samples: Vec<Vec<Vec<usize>>>, k: usize, chunk_size: usize, path: &str, table: &str, delete: bool, callback: Option<Py<PyAny>>) {

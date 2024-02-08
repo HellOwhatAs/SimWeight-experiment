@@ -60,9 +60,17 @@ class DiGraph:
             List[(path: List[edge_idx], cost)]
         """
 
+    def par_bidirectional_dijkstra(self, chunk: List[Tuple[Tuple[int, int], List[List[int]]]]) -> List[List[List[int]]]:
+        """
+        parallel version of bidirectional_dijkstra  
+        with k = len(List[pos_sample])
+        Args:
+            chunk: List[(u, v, List[pos_sample])]
+        """
+
     def par_bidirectional_dijkstra_tosqlite(self, uvs: List[Tuple[int, int]], pos_samples: List[List[List[int]]], k: int, chunk_size: int, path: str, table: str, delete: bool, callback: Optional[Callable[[int], None]]) -> None:
         """
-        parallel version of path_sampling that outputs to a sqlite db file
+        parallel version of bidirectional_dijkstra that outputs to a sqlite db file
 
         Args:
             chunk_size: batch size each commit to sqlite
