@@ -4,7 +4,7 @@ import pandas as pd
 import torch
 from torch.nn.utils.rnn import PackedSequence, pack_sequence, pad_packed_sequence
 import numpy as np
-from neg_sample import SampleLoader
+import utils_rs
 
 class WeightEmbedding(torch.nn.Module):
     
@@ -44,11 +44,11 @@ class Rower(torch.nn.Module):
         with torch.no_grad():
             return self.edge_weight(torch.arange(0, self.edge_weight.weight.shape[0]).view(-1, 1)) * self.edge_base
 
-def batch_trips(chunk: List[Tuple[Tuple[int, int], List[List[int]]]], neg: SampleLoader) -> Tuple[List[torch.LongTensor], List[Tuple[int, int]]]:
+def batch_trips(chunk: List[Tuple[Tuple[int, int], List[List[int]]]], g: utils_rs.DiGraph) -> Tuple[List[torch.LongTensor], List[Tuple[int, int]]]:
     seq: List[torch.LongTensor] = []
     sep: List[Tuple[int, int]] = []
-    for (u, v), positive_samples in chunk:
-        negative_samples = neg.get(u, v)
+    negative_samples_chunk = g.par_bidirectional_dijkstra(chunk)
+    for (_, positive_samples), negative_samples in zip(chunk, negative_samples_chunk):
         seq.extend(torch.LongTensor(trip) for trip in positive_samples)
         seq.extend(torch.LongTensor(trip) for trip in negative_samples)
         sep.append((len(positive_samples), len(negative_samples)))
@@ -68,7 +68,8 @@ if __name__ == "__main__":
     import os, time
     from tqdm import tqdm
     import warnings
-    import utils_rs, more_itertools
+    from more_itertools import chunked
+    import random
 
     device = torch.device("cuda")
     if not torch.cuda.is_available():
@@ -79,36 +80,40 @@ if __name__ == "__main__":
         tmp: Result = pickle.load(f)
         (nodes, edges, trips) = tmp
 
-    trips_test = {k: v for k, v in more_itertools.take(100000, trips["test"].items())}
+    random.seed(42)
+    trips_test = {k: v for k, v in random.sample(trips["test"].items(), 10000)}
+    total_trips = sum(len(i) for i in trips_test.values())
 
     g = utils_rs.DiGraph(nodes.shape[0], [(i['u'], i['v']) for _, i in edges.iterrows()], edges["length"])
     model = Rower(edges).to(device)
     if os.path.isfile('model_weights.pth'):
         model.load_state_dict(torch.load('model_weights.pth'))
     optimizer = torch.optim.Adam(model.parameters())
-    neg = SampleLoader("./beijing.db", "test")
     accs: List[int] = []
+    losses: List[float] = []
     start_time = time.time()
 
     model.train()
-    for epoch in range(250):
-        for chunk in more_itertools.chunked(pbar := tqdm(trips_test.items(), desc=f"epoch: {epoch}({time.time() - start_time}s)"), 16276):
-            seq, sep = batch_trips(chunk, neg)
+    for epoch in (pbar := tqdm(range(8000))):
+        loss_value = 0
+        for chunk in chunked(trips_test.items(), 2 ** 16):
+            seq, sep = batch_trips(chunk, g)
             trips_input = pack_sequence(seq, enforce_sorted=False).to(device)
             lengths = model(trips_input)
             loss = bpr_loss_reverse(lengths, sep)
-            pbar.set_postfix_str(f"loss={loss.item():.4f}", False)
             loss.backward()
+            loss_value += loss.item()
             optimizer.step()
             optimizer.zero_grad()
 
-        weight = model.get_weight().flatten().tolist()
-        acc = g.experiment(trips_test, weight)
-        print(acc)
+        g.weight = model.get_weight().flatten().cpu().numpy()
+        acc = g.experiment_cme(list(flatten(trips_test.values())))
+        pbar.set_postfix(acc=f"{acc} / {total_trips}", loss=f"{loss_value:.4f}", refresh=False)
         accs.append(acc)
+        losses.append(loss_value)
 
     torch.save(model.state_dict(), 'model_weights.pth')
     
     with open("accs.txt", "a") as f:
-        f.write(" ".join(map(str, accs)))
+        f.write("; ".join(map(str, zip(accs, losses))))
         f.write(f'\n#{time.time() - start_time}\n')
