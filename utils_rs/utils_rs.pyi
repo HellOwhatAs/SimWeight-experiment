@@ -60,6 +60,14 @@ class DiGraph:
             List[(path: List[edge_idx], cost)]
         """
 
+    def par_yen(self, chunk: List[Tuple[Tuple[int, int], List[List[int]]]]) -> List[List[List[int]]]:
+        """
+        parallel version of yen  
+        with k = len(List[pos_sample])
+        Args:
+            chunk: List[(u, v, List[pos_sample])]
+        """
+
     def par_bidirectional_dijkstra(self, chunk: List[Tuple[Tuple[int, int], List[List[int]]]]) -> List[List[List[int]]]:
         """
         parallel version of bidirectional_dijkstra  

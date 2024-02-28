@@ -244,6 +244,13 @@ impl DiGraph {
         self.yen(u, v, k, weight).into_iter().filter(|(positive_path, _)| !positive_samples_set.contains(positive_path)).collect()
     }
 
+    pub fn par_yen(&self, chunk: Vec<((usize, usize), Vec<Vec<usize>>)>) -> Vec<Vec<Vec<usize>>> {
+        chunk.into_par_iter().map(|((u, v), samples)| {
+            let k = samples.len();
+            self.yen(u, v, k, None).into_iter().map(|(p, _)| p).collect()
+        }).collect()
+    }
+    
     pub fn par_bidirectional_dijkstra(&self, chunk: Vec<((usize, usize), Vec<Vec<usize>>)>) -> Vec<Vec<Vec<usize>>> {
         chunk.into_par_iter().map(|((u, v), samples)| {
             let k = samples.len();
