@@ -81,8 +81,9 @@ if __name__ == "__main__":
         (nodes, edges, trips) = tmp
 
     random.seed(42)
-    trips_test = {k: v for k, v in random.sample(trips["test"].items(), 10000)}
-    total_trips = sum(len(i) for i in trips_test.values())
+    trips_train = {k: v for k, v in trips["train"].items()}
+    trips_test = {k: v for k, v in random.sample(trips["test"].items(), 5000)}
+    total_test = sum(len(i) for i in trips_test.values())
 
     g = utils_rs.DiGraph(nodes.shape[0], [(i['u'], i['v']) for _, i in edges.iterrows()], edges["length"])
     model = Rower(edges).to(device)
@@ -94,9 +95,9 @@ if __name__ == "__main__":
     start_time = time.time()
 
     model.train()
-    for epoch in (pbar := tqdm(range(8000))):
+    for epoch in (pbar := tqdm(range(4000))):
         loss_value = 0
-        for chunk in chunked(trips_test.items(), 2 ** 16):
+        for chunk in chunked(trips_train.items(), 2 ** 16):
             seq, sep = batch_trips(chunk, g)
             trips_input = pack_sequence(seq, enforce_sorted=False).to(device)
             lengths = model(trips_input)
@@ -108,7 +109,7 @@ if __name__ == "__main__":
 
         g.weight = model.get_weight().flatten().cpu().numpy()
         acc = g.experiment_cme(list(flatten(trips_test.values())))
-        pbar.set_postfix(acc=f"{acc} / {total_trips}", loss=f"{loss_value:.4f}", refresh=False)
+        pbar.set_postfix(acc=f"{acc} / {total_test}", loss=f"{loss_value:.4f}", refresh=False)
         accs.append(acc)
         losses.append(loss_value)
 
