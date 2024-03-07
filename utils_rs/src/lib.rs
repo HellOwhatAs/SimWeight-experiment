@@ -40,12 +40,30 @@ impl DiGraph {
         path.push(eid);
         path
     }
+    fn remove_loop(&self, path: Vec<usize>) -> Vec<usize> {
+        assert!(!path.is_empty(), "not empty path");
+        let mut vis = HashMap::new();
+        vis.insert(self.edges[path[0]].0, 0);
+        let mut res = vec![];
+        for eid in path.into_iter() {
+            let (_, v) = self.edges[eid];
+            vis.entry(v)
+                .and_modify(|e| {
+                    res.truncate(*e);
+                })
+                .or_insert_with(|| {
+                    res.push(eid);
+                    res.len()
+                });
+        }
+        res
+    }
     fn doit(&self, idx: usize, res: &mut HashSet<Vec<usize>>, prev_f: &Vec<Option<usize>>, prev_b: &Vec<Option<usize>> ) {
         let mut path = self.extract_path(idx, prev_f);
         let mut path2 = self.rextract_path(idx, prev_b);
         path2.reverse();
         path.append(&mut path2);
-        res.insert(path);
+        res.insert(self.remove_loop(path));
     }
 }
 
