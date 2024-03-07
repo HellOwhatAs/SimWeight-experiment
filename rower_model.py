@@ -114,7 +114,7 @@ if __name__ == "__main__":
         losses.append(loss_value)
 
     torch.save(model.state_dict(), 'model_weights.pth')
-    
+
     with open("accs.txt", "a") as f:
         f.write("; ".join(map(str, zip(accs, losses))))
         f.write(f'\n#{time.time() - start_time}\n')
