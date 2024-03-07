@@ -63,7 +63,10 @@ impl DiGraph {
         let mut path2 = self.rextract_path(idx, prev_b);
         path2.reverse();
         path.append(&mut path2);
-        res.insert(self.remove_loop(path));
+        let path = self.remove_loop(path);
+        if !path.is_empty() {
+            res.insert(path);
+        }
     }
 }
 

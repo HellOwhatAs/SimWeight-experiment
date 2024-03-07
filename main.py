@@ -19,8 +19,8 @@ with open("./beijing.pkl", "rb") as f:
     (nodes, edges, trips) = tmp
 
 random.seed(42)
-trips_train = {k: v for k, v in trips["train"].items()}
-trips_test = {k: v for k, v in random.sample(list(trips["test"].items()), 5000)}
+trips_train = {k: v for k, v in trips["test"].items()}
+trips_test = {k: v for k, v in random.sample(list(trips["valid"].items()), 5000)}
 total_test = sum(len(i) for i in trips_test.values())
 
 g = utils_rs.DiGraph(nodes.shape[0], [(i['u'], i['v']) for _, i in edges.iterrows()], edges["length"])
