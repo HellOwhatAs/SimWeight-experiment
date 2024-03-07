@@ -29,8 +29,16 @@ if os.path.isfile('model_weights.pth'):
     model.load_state_dict(torch.load('model_weights.pth'))
 optimizer = torch.optim.Adam(model.parameters())
 accs: List[int] = []
+best_acc: int = 0
 losses: List[float] = []
 start_time = time.time()
+
+def save_checkpoint():
+    torch.save(model.state_dict(), 'model_weights.pth')
+
+    with open("accs.txt", "a") as f:
+        f.write("; ".join(map(str, zip(accs, losses))))
+        f.write(f'\n#{time.time() - start_time}\n')
 
 model.train()
 for epoch in (pbar := tqdm(range(4000))):
@@ -51,8 +59,8 @@ for epoch in (pbar := tqdm(range(4000))):
     accs.append(acc)
     losses.append(loss_value)
 
-torch.save(model.state_dict(), 'model_weights.pth')
+    if acc > best_acc:
+        best_acc = acc
+        save_checkpoint()
 
-with open("accs.txt", "a") as f:
-    f.write("; ".join(map(str, zip(accs, losses))))
-    f.write(f'\n#{time.time() - start_time}\n')
+save_checkpoint()
