@@ -1,5 +1,5 @@
 from typing import List
-from rower_model import Rower, pack_sequence
+from rower_model import Rower, pack_sequence, batch_trips, bpr_loss_reverse
 import pandas as pd
 import torch
 import more_itertools
@@ -39,12 +39,12 @@ def rower():
 
     model.train()
     for epoch in (pbar := tqdm(range(40000))):
-        loss = 0
-        for (u, v), paths in trips.items():
-            neg_paths = [path for path, _ in g.yen_drop(paths, u, v, len(paths), model.get_weight().flatten().tolist())]
-            trips_input = pack_sequence([torch.LongTensor(path) for path in (*paths, *neg_paths)], enforce_sorted=False)
-            lengths = model(trips_input)
-            loss += -torch.nn.functional.logsigmoid(lengths[len(paths):].unsqueeze(1) - lengths[:len(paths)]).sum()
+
+        chunk = list(trips.items())
+        seq, sep = batch_trips(chunk, g)
+        trips_input = pack_sequence(seq, enforce_sorted=False)
+        lengths = model(trips_input)
+        loss = bpr_loss_reverse(lengths, sep)
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()

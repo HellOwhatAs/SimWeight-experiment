@@ -47,7 +47,7 @@ class Rower(torch.nn.Module):
 def batch_trips(chunk: List[Tuple[Tuple[int, int], List[List[int]]]], g: utils_rs.DiGraph) -> Tuple[List[torch.LongTensor], List[Tuple[int, int]]]:
     seq: List[torch.LongTensor] = []
     sep: List[Tuple[int, int]] = []
-    negative_samples_chunk = g.par_bidirectional_dijkstra(chunk)
+    negative_samples_chunk = g.par_bidirectional_dijkstra([(u, v, len(paths)) for (u, v), paths in chunk])
     for (_, positive_samples), negative_samples in zip(chunk, negative_samples_chunk):
         seq.extend(torch.LongTensor(trip) for trip in positive_samples)
         seq.extend(torch.LongTensor(trip) for trip in negative_samples)
@@ -82,7 +82,7 @@ if __name__ == "__main__":
 
     random.seed(42)
     trips_train = {k: v for k, v in trips["train"].items()}
-    trips_test = {k: v for k, v in random.sample(trips["test"].items(), 5000)}
+    trips_test = {k: v for k, v in random.sample(list(trips["test"].items()), 5000)}
     total_test = sum(len(i) for i in trips_test.values())
 
     g = utils_rs.DiGraph(nodes.shape[0], [(i['u'], i['v']) for _, i in edges.iterrows()], edges["length"])

@@ -23,7 +23,7 @@ class DiGraph:
             None if target unreachable
         """
 
-    def bidirectional_dijkstra(self, positive_samples: List[List[int]], u: int, v: int, k: int = 1, weight: Optional[List[float]] = None) -> List[List[int]]:
+    def bidirectional_dijkstra(self, u: int, v: int, k: int = 1, weight: Optional[List[float]] = None) -> List[List[int]]:
         """
         Compute at most k paths using the Bidirectional Dijkstra search algorithm.
         Args:
@@ -47,19 +47,6 @@ class DiGraph:
             List[(path: List[edge_idx], cost)]
         """
 
-    def yen_drop(self, positive_samples: List[List[int]], u: int, v: int, k: int, weight: Optional[List[float]] = None) -> List[Tuple[List[int], float]]:
-        """
-        filter yen's result that paths not in positive_samples
-        Args:
-            positive_samples: `List[List[edge_idx]]`
-            u: start vertex
-            v: target vertex
-            k: the amount of paths requests, including the shortest one
-            weight: `weight[edge_idx] = weight`
-        Returns:
-            List[(path: List[edge_idx], cost)]
-        """
-
     def par_yen(self, chunk: List[Tuple[Tuple[int, int], List[List[int]]]]) -> List[List[List[int]]]:
         """
         parallel version of yen  
@@ -68,24 +55,11 @@ class DiGraph:
             chunk: List[(u, v, List[pos_sample])]
         """
 
-    def par_bidirectional_dijkstra(self, chunk: List[Tuple[Tuple[int, int], List[List[int]]]]) -> List[List[List[int]]]:
+    def par_bidirectional_dijkstra(self, chunk: List[Tuple[int, int, int]]) -> List[List[List[int]]]:
         """
         parallel version of bidirectional_dijkstra  
-        with k = len(List[pos_sample])
         Args:
-            chunk: List[(u, v, List[pos_sample])]
-        """
-
-    def par_bidirectional_dijkstra_tosqlite(self, uvs: List[Tuple[int, int]], pos_samples: List[List[List[int]]], k: int, chunk_size: int, path: str, table: str, delete: bool, callback: Optional[Callable[[int], None]]) -> None:
-        """
-        parallel version of bidirectional_dijkstra that outputs to a sqlite db file
-
-        Args:
-            chunk_size: batch size each commit to sqlite
-            path: file path of database
-            table: table name in database
-            delete: whether or not delete the existing db file
-            callback: called after commit, the input would be the size of the chunk
+            chunk: List[(u, v, k)]
         """
     
     def experiment(self, trips: Dict[Tuple[int, int], List[List[int]]], weight: Optional[List[int]] = None) -> int:
@@ -112,26 +86,4 @@ class DiGraph:
         """
 
     def experiment_cme(self, trips: List[List[int]], weight: Optional[List[int]] = None) -> int:
-        ...
-
-
-class Sqlite:
-    def __init__(self, db_path: str, delete = True) -> None:
-        """
-        Connect to database
-        """
-    
-    def insert_btyes(self, table: str, data: List[Tuple[int, int, int, bytes]]) -> None:
-        ...
-
-    def insert(self, table: str, u: int, v: int, samples: List[List[int]]) -> None:
-        ...
-
-    def get_bytes(self, table: str, u: int, v: int) -> Optional[Tuple[int, bytes]]:
-        ...
-
-    def get(self, table: str, u: int, v: int) -> Optional[List[List[int]]]:
-        ...
-
-    def keys(self, table: str) -> List[Tuple[int, int]]:
         ...

@@ -13,3 +13,6 @@ more_itertools
 torch
 torchvision
 torchaudio
+
+matplotlib
+scikit-opt
