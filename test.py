@@ -68,7 +68,7 @@ def test_neg_sample():
         10893: "start",
         7595: "target"
     })
-    map.save("tmp1.html")
+    map.save("tmp0307.html")
 
 def test_g_weight_set():
     weight = g.weight
@@ -76,4 +76,4 @@ def test_g_weight_set():
     assert all(i == 0 for i in g.weight)
     g.weight = weight
 
-test_g_weight_set()
+test_neg_sample()
