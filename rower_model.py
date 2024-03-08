@@ -44,7 +44,7 @@ class Rower(torch.nn.Module):
     
     def get_weight(self) -> torch.Tensor:
         with torch.no_grad():
-            return self.edge_weight(torch.arange(0, self.edge_weight.weight.shape[0]).view(-1, 1)) * self.edge_base
+            return self.edge_weight(torch.arange(0, self.edge_weight.weight.shape[0]).view(-1, 1)) + self.edge_base
 
 def batch_trips(chunk: List[Tuple[Tuple[int, int], List[List[int]]]], g: utils_rs.DiGraph) -> Tuple[List[torch.LongTensor], List[Tuple[int, int]]]:
     seq: List[torch.LongTensor] = []
