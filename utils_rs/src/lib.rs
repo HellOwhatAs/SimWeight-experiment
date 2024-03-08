@@ -69,9 +69,6 @@ impl DiGraph {
             res.insert(path);
         }
     }
-    fn h(&self, pos: &Vec<Point>, u: usize, v: usize) -> f64 {
-        pos[u].haversine_distance(&pos[v])
-    }
 }
 
 
@@ -151,11 +148,17 @@ impl DiGraph {
 
     pub fn bidirectional_astar(&self, u: usize, v: usize, k: usize, weight: Option<Vec<f64>>) -> Vec<Vec<usize>> {
         assert!(self.pos.is_some(), "A-star requires pos");
+
         let pos = self.pos.as_ref().unwrap();
+        let mut cache = vec![vec![None; self.n]; self.n];
+        let mut h = |u: usize, v: usize| -> f64 {
+            *cache[u][v].get_or_insert_with(|| pos[u].haversine_distance(&pos[v]))
+        };
+
         let weight = Self::determin_weight(&self.weight, &weight).expect("must specify weight");
         let (mut dis_f, mut dis_b) = (vec![OrderedFloat(f64::INFINITY); self.n], vec![OrderedFloat(f64::INFINITY); self.n]);
         {
-            let huv = self.h(pos, u, v);
+            let huv = h(u, v);
             dis_f[u] = OrderedFloat(0.0 + huv); dis_b[v] = OrderedFloat(0.0 + huv);
         }
         let (mut vis_f, mut vis_b) = (vec![false; self.n], vec![false; self.n]);
@@ -175,7 +178,7 @@ impl DiGraph {
                     if new_dist < dis_b[s] {
                         dis_b[s] = new_dist;
                         prev_b[s] = Some(eid);
-                        pq_b.push(Reverse((new_dist + self.h(pos, u, s), s)));
+                        pq_b.push(Reverse((new_dist + h(u, s), s)));
                     }
                 }    
             }
@@ -191,7 +194,7 @@ impl DiGraph {
                     if new_dist < dis_f[t] {
                         dis_f[t] = new_dist;
                         prev_f[t] = Some(eid);
-                        pq_f.push(Reverse((new_dist + self.h(pos, t, v), t)));
+                        pq_f.push(Reverse((new_dist + h(t, v), t)));
                     }
                 }
             }
