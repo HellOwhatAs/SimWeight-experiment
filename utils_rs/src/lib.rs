@@ -1,4 +1,4 @@
-use std::{cmp::Reverse, collections::{BinaryHeap, HashMap, HashSet}};
+use std::{cmp::Reverse, collections::{BinaryHeap, HashMap, HashSet}, sync::{Arc, Mutex}};
 use pyo3::prelude::*;
 use rayon::prelude::*;
 use pathfinding::prelude::{dijkstra_eid, yen_eid};
@@ -68,6 +68,64 @@ impl DiGraph {
         if !path.is_empty() {
             res.insert(path);
         }
+    }
+    pub fn _bidirectional_astar(&self, u: usize, v: usize, k: usize, weight: Option<Vec<f64>>, cache: Arc<Mutex<Vec<Vec<Option<f64>>>>>) -> Vec<Vec<usize>> {
+        assert!(self.pos.is_some(), "A-star requires pos");
+
+        let pos = self.pos.as_ref().unwrap();
+        // let mut cache = vec![vec![None; self.n]; self.n];
+        let h = |u: usize, v: usize| -> f64 {
+            *cache.lock().unwrap()[u][v].get_or_insert_with(|| pos[u].haversine_distance(&pos[v]))
+        };
+
+        let weight = Self::determin_weight(&self.weight, &weight).expect("must specify weight");
+        let (mut dis_f, mut dis_b) = (vec![OrderedFloat(f64::INFINITY); self.n], vec![OrderedFloat(f64::INFINITY); self.n]);
+        {
+            let huv = h(u, v);
+            dis_f[u] = OrderedFloat(0.0 + huv); dis_b[v] = OrderedFloat(0.0 + huv);
+        }
+        let (mut vis_f, mut vis_b) = (vec![false; self.n], vec![false; self.n]);
+        let (mut prev_f, mut prev_b) = (vec![None; self.n], vec![None; self.n]);
+        let (mut pq_f, mut pq_b) = (BinaryHeap::from([Reverse((OrderedFloat(0.0), u))]), BinaryHeap::from([Reverse((OrderedFloat(0.0), v))]));
+        
+        let mut res = HashSet::new();
+        while let (Some(Reverse((_, f))), Some(Reverse((_, b)))) = (pq_f.pop(), pq_b.pop()) {
+            if !vis_b[b] {
+                vis_b[b] = true;
+                if vis_f[b] {
+                    self.doit(b, &mut res, &prev_f, &prev_b);
+                }
+                for &(s, eid) in &self.radjlist[b] {
+                    if vis_b[s] { continue; }
+                    let new_dist = OrderedFloat(dis_b[b].0 + weight[eid]);
+                    if new_dist < dis_b[s] {
+                        dis_b[s] = new_dist;
+                        prev_b[s] = Some(eid);
+                        pq_b.push(Reverse((new_dist + h(u, s), s)));
+                    }
+                }    
+            }
+            
+            if !vis_f[f] {
+                vis_f[f] = true;
+                if vis_b[f] { 
+                    self.doit(f, &mut res, &prev_f, &prev_b);
+                }
+                for &(t, eid) in &self.adjlist[f] {
+                    if vis_f[t] { continue; }
+                    let new_dist = OrderedFloat(dis_f[f].0 + weight[eid]);
+                    if new_dist < dis_f[t] {
+                        dis_f[t] = new_dist;
+                        prev_f[t] = Some(eid);
+                        pq_f.push(Reverse((new_dist + h(t, v), t)));
+                    }
+                }
+            }
+
+            if res.len() >= k { break; }
+        }
+
+        res.into_iter().collect()
     }
 }
 
@@ -147,62 +205,7 @@ impl DiGraph {
     }
 
     pub fn bidirectional_astar(&self, u: usize, v: usize, k: usize, weight: Option<Vec<f64>>) -> Vec<Vec<usize>> {
-        assert!(self.pos.is_some(), "A-star requires pos");
-
-        let pos = self.pos.as_ref().unwrap();
-        let mut cache = vec![vec![None; self.n]; self.n];
-        let mut h = |u: usize, v: usize| -> f64 {
-            *cache[u][v].get_or_insert_with(|| pos[u].haversine_distance(&pos[v]))
-        };
-
-        let weight = Self::determin_weight(&self.weight, &weight).expect("must specify weight");
-        let (mut dis_f, mut dis_b) = (vec![OrderedFloat(f64::INFINITY); self.n], vec![OrderedFloat(f64::INFINITY); self.n]);
-        {
-            let huv = h(u, v);
-            dis_f[u] = OrderedFloat(0.0 + huv); dis_b[v] = OrderedFloat(0.0 + huv);
-        }
-        let (mut vis_f, mut vis_b) = (vec![false; self.n], vec![false; self.n]);
-        let (mut prev_f, mut prev_b) = (vec![None; self.n], vec![None; self.n]);
-        let (mut pq_f, mut pq_b) = (BinaryHeap::from([Reverse((OrderedFloat(0.0), u))]), BinaryHeap::from([Reverse((OrderedFloat(0.0), v))]));
-        
-        let mut res = HashSet::new();
-        while let (Some(Reverse((_, f))), Some(Reverse((_, b)))) = (pq_f.pop(), pq_b.pop()) {
-            if !vis_b[b] {
-                vis_b[b] = true;
-                if vis_f[b] {
-                    self.doit(b, &mut res, &prev_f, &prev_b);
-                }
-                for &(s, eid) in &self.radjlist[b] {
-                    if vis_b[s] { continue; }
-                    let new_dist = OrderedFloat(dis_b[b].0 + weight[eid]);
-                    if new_dist < dis_b[s] {
-                        dis_b[s] = new_dist;
-                        prev_b[s] = Some(eid);
-                        pq_b.push(Reverse((new_dist + h(u, s), s)));
-                    }
-                }    
-            }
-            
-            if !vis_f[f] {
-                vis_f[f] = true;
-                if vis_b[f] { 
-                    self.doit(f, &mut res, &prev_f, &prev_b);
-                }
-                for &(t, eid) in &self.adjlist[f] {
-                    if vis_f[t] { continue; }
-                    let new_dist = OrderedFloat(dis_f[f].0 + weight[eid]);
-                    if new_dist < dis_f[t] {
-                        dis_f[t] = new_dist;
-                        prev_f[t] = Some(eid);
-                        pq_f.push(Reverse((new_dist + h(t, v), t)));
-                    }
-                }
-            }
-
-            if res.len() >= k { break; }
-        }
-
-        res.into_iter().collect()
+        self._bidirectional_astar(u, v, k, weight, Arc::new(Mutex::new(vec![vec![None; self.n]; self.n])))
     }
 
     pub fn yen(&self, u: usize, v: usize, k: usize, weight: Option<Vec<f64>>) -> Vec<(Vec<usize>, f64)> {
@@ -235,8 +238,9 @@ impl DiGraph {
     }
 
     pub fn par_bidirectional_astar(&self, chunk: Vec<(usize, usize, usize)>) -> Vec<Vec<Vec<usize>>> {
+        let cache = Arc::new(Mutex::new(vec![vec![None; self.n]; self.n]));
         chunk.into_par_iter().map(|(u, v, k)| {
-            self.bidirectional_astar(u, v, k, None)
+            self._bidirectional_astar(u, v, k, None, cache.clone())
         }).collect()
     }
 
