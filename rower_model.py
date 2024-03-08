@@ -6,6 +6,8 @@ from torch.nn.utils.rnn import PackedSequence, pack_sequence, pad_packed_sequenc
 import numpy as np
 import utils_rs
 
+__all__ = ["Rower", "batch_trips", "pack_sequence", "bpr_loss_reverse"]
+
 class WeightEmbedding(torch.nn.Module):
     
     def __init__(self, num_edges: int, num_fields: Union[Tuple[int], None] = None):
@@ -26,7 +28,7 @@ class WeightEmbedding(torch.nn.Module):
         assert (field is None) == (self.embedding is None), "`field` must consistent with `num_fields` in constructor"
         if self.embedding is not None and field is not None:
             res += self.embedding(field)
-        return res.exp()
+        return res.square()
     
 class Rower(torch.nn.Module):
 
@@ -36,7 +38,7 @@ class Rower(torch.nn.Module):
         self.edge_weight = WeightEmbedding(edges.shape[0])
 
     def forward(self, trips: PackedSequence) -> torch.Tensor:
-        res: torch.Tensor = self.edge_weight(trips.data.view(-1, 1)) * self.edge_base[trips.data]
+        res: torch.Tensor = self.edge_weight(trips.data.view(-1, 1)) + self.edge_base[trips.data]
         tmp = pad_packed_sequence(PackedSequence(res.squeeze(), trips.batch_sizes, trips.sorted_indices, trips.unsorted_indices), batch_first=True)[0]
         return tmp.sum(dim=1)
     
@@ -47,7 +49,7 @@ class Rower(torch.nn.Module):
 def batch_trips(chunk: List[Tuple[Tuple[int, int], List[List[int]]]], g: utils_rs.DiGraph) -> Tuple[List[torch.LongTensor], List[Tuple[int, int]]]:
     seq: List[torch.LongTensor] = []
     sep: List[Tuple[int, int]] = []
-    negative_samples_chunk = g.par_bidirectional_dijkstra([(u, v, len(paths)) for (u, v), paths in chunk])
+    negative_samples_chunk = g.par_bidirectional_astar([(u, v, len(paths)) for (u, v), paths in chunk])
     for (_, positive_samples), negative_samples in zip(chunk, negative_samples_chunk):
         seq.extend(torch.LongTensor(trip) for trip in positive_samples)
         seq.extend(torch.LongTensor(trip) for trip in negative_samples)
