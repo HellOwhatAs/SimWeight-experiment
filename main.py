@@ -23,7 +23,7 @@ trips_train = {k: v for k, v in trips["test"].items()}
 trips_test = {k: v for k, v in random.sample(list(trips["valid"].items()), 5000)}
 total_test = sum(len(i) for i in trips_test.values())
 
-g = utils_rs.DiGraph(nodes.shape[0], [(i['u'], i['v']) for _, i in edges.iterrows()], edges["length"])
+g = utils_rs.DiGraph(nodes.shape[0], [(i['u'], i['v']) for _, i in edges.iterrows()], edges["length"], [(i['x'], i['y']) for _, i in nodes.iterrows()])
 model = Rower(edges).to(device)
 if os.path.isfile('model_weights.pth'):
     model.load_state_dict(torch.load('model_weights.pth'))

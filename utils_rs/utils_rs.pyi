@@ -1,7 +1,7 @@
-from typing import List, Tuple, Optional, Callable, Dict
+from typing import List, Tuple, Optional, Dict
 
 class DiGraph:
-    def __init__(self, n: int, edges: List[Tuple[int, int]], weight: Optional[List[float]] = None) -> None:
+    def __init__(self, n: int, edges: List[Tuple[int, int]], weight: Optional[List[float]] = None, pos: Optional[List[Tuple[float, float]]] = None) -> None:
         self.n: int
         "num of vertexs"
         self.edges: List[Tuple[int, int]]
@@ -35,6 +35,18 @@ class DiGraph:
             List[path]
         """
 
+    def bidirectional_astar(self, u: int, v: int, k: int = 1, weight: Optional[List[float]] = None) -> List[List[int]]:
+        """
+        Compute at most k paths using the Bidirectional A* search algorithm.
+        Args:
+            u: start vertex
+            v: target vertex
+            k: paths num
+            weight: `weight[edge_idx] = weight`
+        Returns:
+            List[path]
+        """
+
     def yen(self, u: int, v: int, k: int, weight: Optional[List[float]] = None) -> List[Tuple[List[int], float]]:
         """
         Compute the k-shortest paths using the Yen’s search algorithm.
@@ -58,6 +70,13 @@ class DiGraph:
     def par_bidirectional_dijkstra(self, chunk: List[Tuple[int, int, int]]) -> List[List[List[int]]]:
         """
         parallel version of bidirectional_dijkstra  
+        Args:
+            chunk: List[(u, v, k)]
+        """
+
+    def par_bidirectional_astar(self, chunk: List[Tuple[int, int, int]]) -> List[List[List[int]]]:
+        """
+        parallel version of bidirectional_astar  
         Args:
             chunk: List[(u, v, k)]
         """

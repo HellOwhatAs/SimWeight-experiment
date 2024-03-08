@@ -13,3 +13,4 @@ pyo3 = "0.19.0"
 pathfinding = { git="https://github.com/HellOwhatAs/pathfinding.git" }
 ordered-float = "4.2.0"
 rayon = "1.8"
+geo = "0.28.0"

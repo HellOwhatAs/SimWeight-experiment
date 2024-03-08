@@ -10,7 +10,7 @@ import more_itertools
 with open("./beijing.pkl", "rb") as f:
     tmp: Result = pickle.load(f)
     (nodes, edges, trips) = tmp
-    g = utils_rs.DiGraph(nodes.shape[0], [(i['u'], i['v']) for _, i in edges.iterrows()], edges["length"])
+    g = utils_rs.DiGraph(nodes.shape[0], [(i['u'], i['v']) for _, i in edges.iterrows()], edges["length"], [(i['x'], i['y']) for _, i in nodes.iterrows()])
 
 def test_length_acc_old():
     trips_test = list(more_itertools.flatten(trips["test"].values()))
@@ -69,6 +69,18 @@ def test_neg_sample():
         7595: "target"
     })
     map.save("tmp0307.html")
+
+def test_astar():
+    map = vis_map.base_edge_map(nodes, edges,
+        tiles= 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7',
+        attr='高德-常规图')
+    tmp = g.bidirectional_astar(10893, 7595, 200)
+    vis_map.add_edges(map, nodes, edges, more_itertools.flatten(tmp))
+    vis_map.add_nodes(map, nodes, {
+        10893: "start",
+        7595: "target"
+    })
+    map.save("tmp0308.html")
 
 def test_g_weight_set():
     weight = g.weight

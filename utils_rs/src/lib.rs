@@ -3,18 +3,19 @@ use pyo3::prelude::*;
 use rayon::prelude::*;
 use pathfinding::prelude::{dijkstra_eid, yen_eid};
 use ordered_float::OrderedFloat;
+use geo::{HaversineDistance, Point};
 
 #[pyclass]
 pub struct DiGraph {
     #[pyo3(get)]
     n: usize,
-    #[pyo3(get)]
     edges: Vec<(usize, usize)>,
     #[pyo3(get)]
     adjlist: Vec<Vec<(usize, usize)>>,
     radjlist: Vec<Vec<(usize, usize)>>,
     #[pyo3(get, set)]
-    weight: Option<Vec<f64>>
+    weight: Option<Vec<f64>>,
+    pos: Option<Vec<Point<f64>>>
 }
 
 impl DiGraph {
@@ -68,20 +69,27 @@ impl DiGraph {
             res.insert(path);
         }
     }
+    fn h(&self, pos: &Vec<Point>, u: usize, v: usize) -> f64 {
+        pos[u].haversine_distance(&pos[v])
+    }
 }
 
 
 #[pymethods]
 impl DiGraph {
     #[new]
-    pub fn new(n: usize, edges: Vec<(usize, usize)>, weight: Option<Vec<f64>>) -> Self {
+    pub fn new(n: usize, edges: Vec<(usize, usize)>, weight: Option<Vec<f64>>, pos: Option<Vec<(f64, f64)>>) -> Self {
         let mut adjlist = vec![vec![]; n];
         let mut radjlist = vec![vec![]; n];
         for (idx, (s, t)) in edges.iter().enumerate() {
             adjlist[*s].push((*t, idx));
             radjlist[*t].push((*s, idx));
         }
-        Self { n, edges, adjlist, radjlist, weight }
+        let pos = match pos {
+            Some(pos) => Some(pos.into_iter().map(|(x, y)| Point::new(x, y)).collect()),
+            _ => None
+        };
+        Self { n, edges, adjlist, radjlist, weight, pos }
     }
 
     pub fn dijkstra(&self, u: usize, v: usize, weight: Option<Vec<f64>>) -> Option<(Vec<usize>, f64)> {
@@ -141,6 +149,59 @@ impl DiGraph {
         res.into_iter().collect()
     }
 
+    pub fn bidirectional_astar(&self, u: usize, v: usize, k: usize, weight: Option<Vec<f64>>) -> Vec<Vec<usize>> {
+        assert!(self.pos.is_some(), "A-star requires pos");
+        let pos = self.pos.as_ref().unwrap();
+        let weight = Self::determin_weight(&self.weight, &weight).expect("must specify weight");
+        let (mut dis_f, mut dis_b) = (vec![OrderedFloat(f64::INFINITY); self.n], vec![OrderedFloat(f64::INFINITY); self.n]);
+        {
+            let huv = self.h(pos, u, v);
+            dis_f[u] = OrderedFloat(0.0 + huv); dis_b[v] = OrderedFloat(0.0 + huv);
+        }
+        let (mut vis_f, mut vis_b) = (vec![false; self.n], vec![false; self.n]);
+        let (mut prev_f, mut prev_b) = (vec![None; self.n], vec![None; self.n]);
+        let (mut pq_f, mut pq_b) = (BinaryHeap::from([Reverse((OrderedFloat(0.0), u))]), BinaryHeap::from([Reverse((OrderedFloat(0.0), v))]));
+        
+        let mut res = HashSet::new();
+        while let (Some(Reverse((_, f))), Some(Reverse((_, b)))) = (pq_f.pop(), pq_b.pop()) {
+            if !vis_b[b] {
+                vis_b[b] = true;
+                if vis_f[b] {
+                    self.doit(b, &mut res, &prev_f, &prev_b);
+                }
+                for &(s, eid) in &self.radjlist[b] {
+                    if vis_b[s] { continue; }
+                    let new_dist = OrderedFloat(dis_b[b].0 + weight[eid]);
+                    if new_dist < dis_b[s] {
+                        dis_b[s] = new_dist;
+                        prev_b[s] = Some(eid);
+                        pq_b.push(Reverse((new_dist + self.h(pos, u, s), s)));
+                    }
+                }    
+            }
+            
+            if !vis_f[f] {
+                vis_f[f] = true;
+                if vis_b[f] { 
+                    self.doit(f, &mut res, &prev_f, &prev_b);
+                }
+                for &(t, eid) in &self.adjlist[f] {
+                    if vis_f[t] { continue; }
+                    let new_dist = OrderedFloat(dis_f[f].0 + weight[eid]);
+                    if new_dist < dis_f[t] {
+                        dis_f[t] = new_dist;
+                        prev_f[t] = Some(eid);
+                        pq_f.push(Reverse((new_dist + self.h(pos, t, v), t)));
+                    }
+                }
+            }
+
+            if res.len() >= k { break; }
+        }
+
+        res.into_iter().collect()
+    }
+
     pub fn yen(&self, u: usize, v: usize, k: usize, weight: Option<Vec<f64>>) -> Vec<(Vec<usize>, f64)> {
         let weight = Self::determin_weight(&self.weight, &weight).expect("must specify weight");
         let successors = |n: &usize| {
@@ -167,6 +228,12 @@ impl DiGraph {
     pub fn par_bidirectional_dijkstra(&self, chunk: Vec<(usize, usize, usize)>) -> Vec<Vec<Vec<usize>>> {
         chunk.into_par_iter().map(|(u, v, k)| {
             self.bidirectional_dijkstra(u, v, k, None)
+        }).collect()
+    }
+
+    pub fn par_bidirectional_astar(&self, chunk: Vec<(usize, usize, usize)>) -> Vec<Vec<Vec<usize>>> {
+        chunk.into_par_iter().map(|(u, v, k)| {
+            self.bidirectional_astar(u, v, k, None)
         }).collect()
     }
 
