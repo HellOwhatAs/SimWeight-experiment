@@ -36,3 +36,5 @@ python -m venv .venv
 - exist multiple shortest paths: does it match the requirement?
 - smaller case to debug
 - dynamic negative sampling
+
+❗️ One possible explaination of accuracy difference: online car-hailing is different from taxi
