@@ -32,9 +32,15 @@ python -m venv .venv
 ### Discussion 2024.1.27
 - the time complexity of bidirection dijkstra is equal to dijkstra 😨
 
+### Discussion 2024.2.21
+- use test dataset to evaluate the weight
+
+### Discussion 2024.3.10
+- a explaination of low accuracy: didi online taxi is different from taxi. Online taxi follows navigation most of the time (thanks to Yongbao Song)
+- involve other evaluation standard, eg. top3
+- start working on the paper
+
 ## TODO
 - exist multiple shortest paths: does it match the requirement?
-- smaller case to debug
-- dynamic negative sampling
-
-❗️ One possible explaination of accuracy difference: online car-hailing is different from taxi
+- involve other evaluation standard, eg. top3
+- start working on the paper
