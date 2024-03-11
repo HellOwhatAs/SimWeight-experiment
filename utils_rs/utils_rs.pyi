@@ -87,3 +87,8 @@ class DiGraph:
 
     def experiment_cme(self, trips: List[List[int]], weight: Optional[List[int]] = None) -> int:
         ...
+
+    def experiment_topk(self, trips: List[List[int]], k: int, weight: Optional[List[int]] = None) -> int:
+        """
+        a trip will acc if the top-k shortest path under given weight contains the trip
+        """
