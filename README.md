@@ -43,4 +43,9 @@ python -m venv .venv
 ## TODO
 - exist multiple shortest paths: does it match the requirement?
 - involve other evaluation standard, eg. top3
-- start working on the paper
+  |top(k)|length|ROWER|
+  |:---: |:----:|:---:|
+  |top3  |0.31  |0.43 |
+  |top5  |0.34  |0.46 |
+  |top10 |0.37  |0.51 |
+  |top15 |0.40  |0.53 |
