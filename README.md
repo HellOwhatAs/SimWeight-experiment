@@ -49,3 +49,8 @@ python -m venv .venv
   |top5  |0.34  |0.46 |
   |top10 |0.37  |0.51 |
   |top15 |0.40  |0.53 |
+- as a python package that solves "Sim-Weight Estimation Problem"
+  with exampe data generator based on hidden weight
+- better dataset?
+  using osmnx: https://zhuanlan.zhihu.com/p/613801546
+- need baselines (not restricted on edge weight)
