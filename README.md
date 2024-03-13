@@ -54,3 +54,6 @@ python -m venv .venv
 - better dataset?
   using osmnx: https://zhuanlan.zhihu.com/p/613801546
 - need baselines (not restricted on edge weight)
+
+❌ getting worse with loss being
+$$\mathrm{loss} = \frac{\sum\limits_ {p \in P} \sum\limits_ {\mathrm{eid} \in p} \mathrm{weight}_ \mathrm{eid}}{\sum\limits_ {\mathrm{eid} \in E} \mathrm{weight}_ \mathrm{eid}}$$
