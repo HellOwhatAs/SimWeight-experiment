@@ -7,7 +7,7 @@ import warnings
 from more_itertools import chunked, flatten
 import random
 import torch, utils_rs
-from rower_model import Rower, batch_trips, pack_sequence, bpr_loss_reverse
+from rower_model import Rower, batch_trips_no_sample, pack_sequence, loss_no_sample
 
 device = torch.device("cuda")
 if not torch.cuda.is_available():
@@ -44,10 +44,10 @@ model.train()
 for epoch in (pbar := tqdm(range(4000))):
     loss_value = 0
     for chunk in chunked(trips_train.items(), 2 ** 16):
-        seq, sep = batch_trips(chunk, g)
+        seq = batch_trips_no_sample(chunk)
         trips_input = pack_sequence(seq, enforce_sorted=False).to(device)
         lengths = model(trips_input)
-        loss = bpr_loss_reverse(lengths, sep)
+        loss = loss_no_sample(lengths, model.weights)
         loss.backward()
         loss_value += loss.item()
         optimizer.step()
