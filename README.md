@@ -57,3 +57,6 @@ python -m venv .venv
 
 ❌ getting worse with loss being
 $$\mathrm{loss} = \frac{\sum\limits_ {p \in P} \sum\limits_ {\mathrm{eid} \in p} \mathrm{weight}_ \mathrm{eid}}{\sum\limits_ {\mathrm{eid} \in E} \mathrm{weight}_ \mathrm{eid}}$$
+
+![no-sampling](https://github.com/HellOwhatAs/SimWeight-experiment/assets/88815487/8b2aeb4d-28d6-4f98-b345-56d97e919365)
+
