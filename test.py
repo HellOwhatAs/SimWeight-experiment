@@ -1,11 +1,15 @@
 from extract_data import Result
-from typing import Dict, Set, Tuple
+from typing import Dict, List, Set, Tuple
 import pickle
 import utils_rs
 import time
 from tqdm import tqdm
 import vis_map
 import more_itertools
+from rower_model import Rower
+import torch
+import cmap
+import pandas as pd
 
 with open("./beijing.pkl", "rb") as f:
     tmp: Result = pickle.load(f)
@@ -58,8 +62,6 @@ def test_map_case():
     })
     map.save("tmp_before.html")
 
-    from rower_model import Rower
-    import torch
     model = Rower(edges)
     model.load_state_dict(torch.load('model_weights.pth'))
     old_weight = g.weight
@@ -97,4 +99,35 @@ def test_g_weight_set():
     assert all(i == 0 for i in g.weight)
     g.weight = weight
 
-test_map_case()
+def test_delta_weight():
+    model = Rower(edges)
+    model.load_state_dict(torch.load('model_weights.pth'))
+    old_weight = torch.tensor(g.weight)
+    new_weight = torch.tensor(model.get_weight().flatten().cpu().numpy())
+    c_weight = (new_weight / old_weight / 2).min(torch.tensor(1))
+    cweight: List[float] = c_weight.tolist()
+
+    cm = cmap.Colormap(['lime', (0.2, 'blue'), 'red', 'black'])
+    color = [cm(i).hex for i in cweight]
+    m = vis_map.colored_edge_map(nodes, edges, color, zoom_start=12)
+    m.save("delta_weight.html")
+
+def test_weight_distribute():
+    import matplotlib.pyplot as plt
+    model = Rower(edges)
+    model.load_state_dict(torch.load('model_weights.pth'))
+    old_weight = torch.tensor(g.weight)
+    new_weight = torch.tensor(model.get_weight().flatten().cpu().numpy())
+    plt.plot(sorted((new_weight / old_weight)))
+    plt.show()
+
+def test_unlearned_edges():
+    model = Rower(edges)
+    model.load_state_dict(torch.load('model_weights.pth'))
+    new_weight = torch.tensor(model.get_weight().flatten().cpu().numpy())
+    tmp_edges = edges.copy(deep=True)
+    tmp_edges['weight'] = new_weight
+
+    vis_map.base_edge_map(nodes, tmp_edges.loc[(tmp_edges['length'] - tmp_edges['weight']).abs() < 0.1], zoom_start=12).save("unlearned_edges.html")
+
+test_weight_distribute()

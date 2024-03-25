@@ -67,3 +67,30 @@ def add_edges(m: folium.Map, nodes: pd.DataFrame, edges: pd.DataFrame, edge_ids:
         color=color,
         weight=weight
     ).add_to(m)
+
+def colored_edge_map(
+        nodes: pd.DataFrame, edges: pd.DataFrame,
+        color: List[str], weight: int = 1, zoom_start: int = 10, tiles: str = '', attr: str = '', prefer_canvas: bool = True) -> folium.Map:
+    edge_locations: List[List[Tuple[float, float]]] = []
+    nodes_loc = nodes[["y", "x"]].to_numpy().tolist()
+    for _, edge in tqdm(edges.iterrows(), dynamic_ncols=True):
+        u, v = edge['u'], edge['v']
+        edge_locations.append([
+            (nodes_loc[u][0], nodes_loc[u][1]),
+            (nodes_loc[v][0], nodes_loc[v][1])
+        ])
+    center = list(sum(sum(j[k] for j in i) / len(i) for i in edge_locations) / len(edge_locations) for k in range(2))
+    m = folium.Map(
+        center,
+        tiles=tiles,
+        attr=attr,
+        zoom_start=zoom_start,
+        prefer_canvas=prefer_canvas
+    )
+    for edge_loc, c in tqdm(zip(edge_locations, color)):
+        folium.PolyLine(
+            locations=[edge_loc],
+            color=c,
+            weight=weight
+        ).add_to(m)
+    return m
