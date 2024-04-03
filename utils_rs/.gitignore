@@ -1,5 +1,9 @@
 /target
 
+# vendor, see: https://stackoverflow.com/questions/32267233/how-to-build-a-project-using-cargo-in-an-offline-environment
+/vendor
+/.cargo
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 .pytest_cache/

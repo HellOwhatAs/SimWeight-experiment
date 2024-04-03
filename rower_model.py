@@ -56,8 +56,14 @@ def batch_trips(chunk: List[Tuple[Tuple[int, int], List[List[int]]]], g: utils_r
 
 def bpr_loss_reverse(lengths: torch.Tensor, sep: List[Tuple[int, int]]) -> torch.Tensor:
     idx = 0
-    return sum(
-        - torch.nn.functional.logsigmoid(
-            - lengths[idx: (idx := idx + pos)] + lengths[idx: (idx := idx + neg)].unsqueeze(1)
-        ).sum()
-        for (pos, neg) in sep)
+    tmp = []
+    for (pos, neg) in sep:
+        tmp1 = lengths[idx: (idx + pos)]
+        idx += pos
+        tmp2 = lengths[idx: (idx + neg)]
+        idx += neg
+        
+        tmp.append(- torch.nn.functional.logsigmoid(
+            - tmp1 + tmp2.unsqueeze(1)
+        ).sum())
+    return sum(tmp)

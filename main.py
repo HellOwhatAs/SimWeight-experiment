@@ -1,3 +1,20 @@
+import argparse
+
+parser = argparse.ArgumentParser(description='training of Rower model')
+parser.add_argument('--log', type=str, default="accs.txt", help='log file name')
+parser.add_argument('--city', type=str, default="beijing.pkl", help='city file name')
+parser.add_argument('--model', type=str, default="model_weights.pth", help='model weights file name')
+parser.add_argument('--device', type=str, default="cuda", help='device where model run')
+parser.add_argument('--epoch', type=int, default=4000, help='number training runs')
+parser.add_argument('--chunk', type=int, default=2 ** 16, help='chunk size')
+args = parser.parse_args()
+log_fname = getattr(args, 'log')
+city_fname = getattr(args, 'city')
+model_fname = getattr(args, 'model')
+device_name = getattr(args, 'device')
+epoch = getattr(args, 'epoch')
+chunk_size = getattr(args, 'chunk')
+
 from extract_data import Result
 from typing import List
 import pickle
@@ -9,12 +26,12 @@ import random
 import torch, utils_rs
 from rower_model import Rower, batch_trips, pack_sequence, bpr_loss_reverse
 
-device = torch.device("cuda")
+device = torch.device(device_name)
 if not torch.cuda.is_available():
     device = torch.device("cpu")
     warnings.warn("Using CPU")
 
-with open("./beijing.pkl", "rb") as f:
+with open(city_fname, "rb") as f:
     tmp: Result = pickle.load(f)
     (nodes, edges, trips) = tmp
 
@@ -25,8 +42,8 @@ total_test = sum(len(i) for i in trips_test.values())
 
 g = utils_rs.DiGraph(nodes.shape[0], [(i['u'], i['v']) for _, i in edges.iterrows()], edges["length"])
 model = Rower(edges).to(device)
-if os.path.isfile('model_weights.pth'):
-    model.load_state_dict(torch.load('model_weights.pth'))
+if os.path.isfile(model_fname):
+    model.load_state_dict(torch.load(model_fname))
 optimizer = torch.optim.Adam(model.parameters())
 accs: List[int] = []
 best_acc: int = 0
@@ -34,16 +51,17 @@ losses: List[float] = []
 start_time = time.time()
 
 def save_checkpoint():
-    torch.save(model.state_dict(), 'model_weights.pth')
+    torch.save(model.state_dict(), model_fname)
 
-    with open("accs.txt", "a") as f:
+    with open(log_fname, "a") as f:
         f.write("; ".join(map(str, zip(accs, losses))))
         f.write(f'\n#{time.time() - start_time}\n')
 
 model.train()
-for epoch in (pbar := tqdm(range(4000))):
+pbar = tqdm(range(epoch))
+for epoch in pbar:
     loss_value = 0
-    for chunk in chunked(trips_train.items(), 2 ** 16):
+    for chunk in chunked(trips_train.items(), chunk_size):
         seq, sep = batch_trips(chunk, g)
         trips_input = pack_sequence(seq, enforce_sorted=False).to(device)
         lengths = model(trips_input)
