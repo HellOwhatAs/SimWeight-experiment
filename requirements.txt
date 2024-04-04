@@ -16,3 +16,4 @@ torchaudio
 
 matplotlib
 scikit-opt
+cmap
