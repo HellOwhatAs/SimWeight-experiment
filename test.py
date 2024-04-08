@@ -37,8 +37,14 @@ def test_yen():
     yen_trips = [path for path, _ in g.yen(10893, 7595, 200)]
     vis_map.add_edges(map, nodes, edges, set(more_itertools.flatten(yen_trips)), color="#CE4257")
     vis_map.add_nodes(map, nodes, {
-        10893: "start",
-        7595: "target"
+        10893: {
+            'popup': "start",
+            'color': '#0000FF',
+        },
+        7595: {
+            'popup': "target",
+            'color': '#A020F0',
+        }
     })
     map.save("yen.html")
 
@@ -49,8 +55,14 @@ def test_bidijstra():
     tmp = g.bidirectional_dijkstra(10893, 7595, 200)
     vis_map.add_edges(map, nodes, edges, more_itertools.flatten(tmp), color="#CE4257")
     vis_map.add_nodes(map, nodes, {
-        10893: "start",
-        7595: "target"
+        10893: {
+            'popup': "start",
+            'color': '#0000FF',
+        },
+        7595: {
+            'popup': "target",
+            'color': '#A020F0',
+        }
     })
     map.save("bidijstra.html")
 
@@ -71,8 +83,14 @@ def test_why_dynamic():
     tmp_trips = g.bidirectional_dijkstra(max_val[0][0], max_val[0][1], len(max_val[1]))
     vis_map.add_trips(map, nodes, edges, tmp_trips, color="#CE4257")
     vis_map.add_nodes(map, nodes, {
-        max_val[0][0]: f"start: {max_val[0][0]}",
-        max_val[0][1]: f"target: {max_val[0][1]}"
+        max_val[0][0]: {
+            'popup': f"start: {max_val[0][0]}",
+            'color': '#0000FF',
+        },
+        max_val[0][1]: {
+            'popup': f"target: {max_val[0][1]}",
+            'color': '#A020F0',
+        }
     })
     map.save("why_dynamic.html")
 
@@ -92,8 +110,14 @@ def test_map_case():
     yen_trips = [path for path, _ in g.yen(max_val[0][0], max_val[0][1], 1)]
     vis_map.add_trips(map, nodes, edges, yen_trips, color="#CE4257")
     vis_map.add_nodes(map, nodes, {
-        max_val[0][0]: f"start: {max_val[0][0]}",
-        max_val[0][1]: f"target: {max_val[0][1]}"
+        max_val[0][0]: {
+            'popup': f"start: {max_val[0][0]}",
+            'color': '#0000FF',
+        },
+        max_val[0][1]: {
+            'popup': f"target: {max_val[0][1]}",
+            'color': '#A020F0',
+        }
     })
     map.save("tmp_before.html")
 
@@ -109,8 +133,14 @@ def test_map_case():
     yen_trips = [path for path, _ in g.yen(max_val[0][0], max_val[0][1], 1)]
     vis_map.add_trips(map, nodes, edges, yen_trips, color="#CE4257")
     vis_map.add_nodes(map, nodes, {
-        max_val[0][0]: f"start: {max_val[0][0]}",
-        max_val[0][1]: f"target: {max_val[0][1]}"
+        max_val[0][0]: {
+            'popup': f"start: {max_val[0][0]}",
+            'color': '#0000FF',
+        },
+        max_val[0][1]: {
+            'popup': f"target: {max_val[0][1]}",
+            'color': '#A020F0',
+        }
     })
     map.save("tmp_after.html")
     g.weight = old_weight
@@ -133,8 +163,8 @@ def test_delta_weight():
     model.load_state_dict(torch.load('model_weights.pth'))
     old_weight = torch.tensor(g.weight)
     new_weight = torch.tensor(model.get_weight().flatten().cpu().numpy())
-    c_weight = histogram_equalization((new_weight / old_weight / 2).numpy())
-    cweight: List[float] = (c_weight / c_weight.max()).tolist()
+    c_weight = np.array(sorted((new_weight / old_weight / 2)))
+    cweight = histogram_equalization(c_weight, 100000)
 
     cm = cmap.Colormap('viridis_r')
     color = [cm(i).hex for i in cweight]
@@ -151,12 +181,10 @@ def test_weight_distribute():
     c_weight = np.array(sorted((new_weight / old_weight / 2)))
     cweight = histogram_equalization(c_weight, 100000)
 
-    plt.figure(figsize=(12,6))
-    ax = plt.subplot(121)
-    ax.set_yscale('log')
-    plt.scatter(range(len(c_weight)), c_weight, alpha=0.05)
-    plt.subplot(122)
-    plt.scatter(range(len(cweight)), cweight, alpha=0.05)
+    cm = cmap.Colormap('viridis_r')
+    color = [cm(i).hex for i in cweight]
+    plt.yscale('log')
+    plt.scatter(range(len(c_weight)), c_weight, alpha=0.1, c=color)
     plt.savefig("weight_distribute.png", dpi=600)
 
 def test_unlearned_edges():
@@ -168,4 +196,4 @@ def test_unlearned_edges():
 
     vis_map.base_edge_map(nodes, tmp_edges.loc[(tmp_edges['length'] - tmp_edges['weight']).abs() < 0.1], zoom_start=12, color='black').save("unlearned_edges.html")
 
-test_unlearned_edges()
+test_weight_distribute()

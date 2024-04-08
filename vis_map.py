@@ -1,6 +1,6 @@
 import folium
 import pandas as pd
-from typing import List, Tuple, Dict, Iterable
+from typing import List, Tuple, Dict, Iterable, Optional
 from tqdm import tqdm
 
 def base_edge_map(
@@ -46,12 +46,14 @@ def add_trips(m: folium.Map, nodes: pd.DataFrame, edges: pd.DataFrame, trips: Li
         weight=weight
     ).add_to(m)
 
-def add_nodes(m: folium.Map, nodes: pd.DataFrame, node_ids: Dict[int, str]):
+def add_nodes(m: folium.Map, nodes: pd.DataFrame, node_ids: Dict[int, Dict[str, str]], colors: Optional[List[str]] = None):
+    if colors is None: colors = ['#3388ff'] * len(node_ids)
     for node_id in node_ids:
+        default = dict(fill = True, fillOpacity = 1.0)
+        default.update(node_ids[node_id])
         folium.Circle(
             (nodes.loc[node_id]['y'], nodes.loc[node_id]['x']),
-            popup = node_ids[node_id],
-
+            **default
         ).add_to(m)
 
 def add_edges(m: folium.Map, nodes: pd.DataFrame, edges: pd.DataFrame, edge_ids: Iterable[int], color: str = "#FF0000", weight: int = 3):
