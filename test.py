@@ -2,7 +2,6 @@ from extract_data import Result
 from typing import Dict, List, Set, Tuple
 import pickle
 import utils_rs
-import time
 from tqdm import tqdm
 import vis_map
 import more_itertools
@@ -11,23 +10,32 @@ import torch
 import cmap
 import numpy as np
 
-with open("./beijing.pkl", "rb") as f:
+city = 'beijing'
+
+with open(f"./{city}.pkl", "rb") as f:
     tmp: Result = pickle.load(f)
-    (nodes, edges, trips) = tmp
-    g = utils_rs.DiGraph(nodes.shape[0], [(i['u'], i['v']) for _, i in edges.iterrows()], edges["length"])
+(nodes, edges, trips) = tmp
+g = utils_rs.DiGraph(nodes.shape[0], [(i['u'], i['v']) for _, i in edges.iterrows()], edges["length"])
 
-def test_length_acc_old():
+model = Rower(edges)
+model.load_state_dict(torch.load(f'{city}_model_weights.pth', map_location='cpu'))
+
+def test_acc_old():
     trips_test = list(more_itertools.flatten(trips["test"].values()))
-    t = time.time()
-    res = g.experiment_old(trips_test)
-    print(time.time() - t)
-    print(res / len(trips_test))
+    baseline = g.experiment_old(trips_test)
+    old_weight = g.weight
+    g.weight = model.get_weight().flatten().cpu().numpy()
+    acc = g.experiment_old(trips_test)
+    print(baseline / len(trips_test), acc / len(trips_test))
+    g.weight = old_weight
 
-def test_length_acc():
-    t = time.time()
-    res = g.experiment(trips["test"])
-    print(time.time() - t)
-    print(res / len(trips["test"]))
+def test_acc():
+    baseline = g.experiment(trips["test"])
+    old_weight = g.weight
+    g.weight = model.get_weight().flatten().cpu().numpy()
+    acc = g.experiment(trips["test"])
+    print(baseline / len(trips["test"]), acc / len(trips["test"]))
+    g.weight = old_weight
 
 def test_yen():
     map = vis_map.base_edge_map(nodes, edges,
@@ -120,8 +128,6 @@ def test_map_case():
     })
     map.save("tmp_before.html")
 
-    model = Rower(edges)
-    model.load_state_dict(torch.load('model_weights.pth'))
     old_weight = g.weight
     g.weight = model.get_weight().flatten().cpu().numpy()
 
@@ -158,8 +164,6 @@ def histogram_equalization(data: np.ndarray, bins: int = 1024):
     return equalized_data
 
 def test_delta_weight():
-    model = Rower(edges)
-    model.load_state_dict(torch.load('model_weights.pth'))
     old_weight = torch.tensor(g.weight)
     new_weight = torch.tensor(model.get_weight().flatten().cpu().numpy())
     c_weight = np.array(sorted((new_weight / old_weight / 2)))
@@ -172,8 +176,6 @@ def test_delta_weight():
 
 def test_weight_distribute():
     import matplotlib.pyplot as plt
-    model = Rower(edges)
-    model.load_state_dict(torch.load('model_weights.pth'))
     old_weight = torch.tensor(g.weight)
     new_weight = torch.tensor(model.get_weight().flatten().cpu().numpy())
     c_weight = np.array(sorted((new_weight / old_weight / 2)))
@@ -186,12 +188,10 @@ def test_weight_distribute():
     plt.savefig("weight_distribute.svg", dpi=600)
 
 def test_unlearned_edges():
-    model = Rower(edges)
-    model.load_state_dict(torch.load('model_weights.pth'))
     new_weight = torch.tensor(model.get_weight().flatten().cpu().numpy())
     tmp_edges = edges.copy(deep=True)
     tmp_edges['weight'] = new_weight
 
     vis_map.base_edge_map(nodes, tmp_edges.loc[(tmp_edges['length'] - tmp_edges['weight']).abs() < 0.1], zoom_start=12, color='black').save("unlearned_edges.html")
 
-test_weight_distribute()
+test_acc()

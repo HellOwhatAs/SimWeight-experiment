@@ -3,7 +3,7 @@ import argparse
 parser = argparse.ArgumentParser(description='training of Rower model')
 parser.add_argument('--log', type=str, default="accs.txt", help='log file name')
 parser.add_argument('--city', type=str, default="beijing.pkl", help='city file name')
-parser.add_argument('--model', type=str, default="model_weights.pth", help='model weights file name')
+parser.add_argument('--model', type=str, default="beijing_model_weights.pth", help='model weights file name')
 parser.add_argument('--device', type=str, default="cuda", help='device where model run')
 parser.add_argument('--epoch', type=int, default=4000, help='number training runs')
 parser.add_argument('--chunk', type=int, default=2 ** 16, help='chunk size')
