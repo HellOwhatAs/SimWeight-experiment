@@ -8,8 +8,7 @@ import vis_map
 import more_itertools
 from rower_model import Rower
 import torch
-import cmap, re
-import pandas as pd
+import cmap
 import numpy as np
 
 with open("./beijing.pkl", "rb") as f:
@@ -164,7 +163,7 @@ def test_delta_weight():
     old_weight = torch.tensor(g.weight)
     new_weight = torch.tensor(model.get_weight().flatten().cpu().numpy())
     c_weight = np.array(sorted((new_weight / old_weight / 2)))
-    cweight = histogram_equalization(c_weight, 100000)
+    cweight: List[float] = histogram_equalization(c_weight, 100000).tolist()
 
     cm = cmap.Colormap('viridis_r')
     color = [cm(i).hex for i in cweight]
@@ -177,15 +176,14 @@ def test_weight_distribute():
     model.load_state_dict(torch.load('model_weights.pth'))
     old_weight = torch.tensor(g.weight)
     new_weight = torch.tensor(model.get_weight().flatten().cpu().numpy())
-
     c_weight = np.array(sorted((new_weight / old_weight / 2)))
-    cweight = histogram_equalization(c_weight, 100000)
+    cweight: List[float] = histogram_equalization(c_weight, 100000).tolist()
 
     cm = cmap.Colormap('viridis_r')
     color = [cm(i).hex for i in cweight]
     plt.yscale('log')
-    plt.scatter(range(len(c_weight)), c_weight, alpha=0.1, c=color)
-    plt.savefig("weight_distribute.png", dpi=600)
+    plt.scatter(range(len(c_weight)), c_weight, linewidths=0, edgecolors=None, alpha=0.1, c=color)
+    plt.savefig("weight_distribute.svg", dpi=600)
 
 def test_unlearned_edges():
     model = Rower(edges)
