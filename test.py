@@ -212,13 +212,11 @@ class Test:
 
         vis_map.base_edge_map(
             self.nodes,
-            tmp_edges.loc[(tmp_edges['length'] - tmp_edges['weight']).abs() < 0.01],
+            tmp_edges.loc[(tmp_edges['length'] == tmp_edges['weight']).abs() < 1e-5],
             zoom_start=12,
             color='black'
         ).save("unlearned_edges.html")
 
 if __name__ == '__main__':
     test = Test('cityindia')
-    print(test.acc())
-    test.vis_delta_weight()
     test.vis_unlearned_edges()
