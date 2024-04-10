@@ -40,9 +40,14 @@ class Rower(torch.nn.Module):
         tmp = pad_packed_sequence(PackedSequence(res.squeeze(), trips.batch_sizes, trips.sorted_indices, trips.unsorted_indices), batch_first=True)[0]
         return tmp.sum(dim=1)
     
-    def get_weight(self) -> torch.Tensor:
-        with torch.no_grad():
-            return self.edge_weight(torch.arange(0, self.edge_weight.weight.shape[0]).view(-1, 1)) * self.edge_base
+    def weight_factor(self) -> torch.Tensor:
+        return self.edge_weight(torch.arange(0, self.edge_weight.weight.shape[0]).view(-1, 1))
+    
+    def grad_weight(self) -> torch.Tensor:
+        return self.weight_factor() * self.edge_base
+    
+    def get_weight(self):
+        with torch.no_grad(): return self.grad_weight()
 
 def batch_trips(chunk: List[Tuple[Tuple[int, int], List[List[int]]]], g: utils_rs.DiGraph) -> Tuple[List[torch.LongTensor], List[Tuple[int, int]]]:
     seq: List[torch.LongTensor] = []
