@@ -14,19 +14,19 @@ from matplotlib.axes import Axes
 import numpy as np
 
 class Test:
-    def __init__(self, city: str) -> None:
+    def __init__(self, city: str, data_fp: Optional[str] = None, model_fp: Optional[str] = None) -> None:
         self.city = city
 
-        with open(f"./{city}.pkl", "rb") as f:
+        with open(data_fp if data_fp is not None else f"./{city}.pkl", "rb") as f:
             tmp: Result = pickle.load(f)
         (self.nodes, self.edges, self.trips) = tmp
         self.g = utils_rs.DiGraph(self.nodes.shape[0], [(i['u'], i['v']) for _, i in self.edges.iterrows()], self.edges["length"])
 
         self.model = Rower(self.edges)
-        self.model.load_state_dict(torch.load(f'{city}_model_weights.pth', map_location='cpu'))
+        self.model.load_state_dict(torch.load(model_fp if model_fp is not None else f'{city}_model_weights.pth', map_location='cpu'))
 
     @contextmanager
-    def with_weight(self, new_weight: List[float]):
+    def weight_being(self, new_weight: List[float]):
         old_weight = self.g.weight
         self.g.weight = new_weight
         try: yield
@@ -35,13 +35,13 @@ class Test:
     def acc_old(self):
         trips_test = list(more_itertools.flatten(self.trips["test"].values()))
         baseline = self.g.experiment_old(trips_test)
-        with self.with_weight(self.model.get_weight().flatten().cpu().numpy()):
+        with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
             acc = self.g.experiment_old(trips_test)
         return baseline / len(trips_test), acc / len(trips_test)
 
     def acc(self):
         baseline = self.g.experiment(self.trips["test"])
-        with self.with_weight(self.model.get_weight().flatten().cpu().numpy()):
+        with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
             acc = self.g.experiment(self.trips["test"])
         return baseline / len(self.trips["test"]), acc / len(self.trips["test"])
 
@@ -140,7 +140,7 @@ class Test:
         })
         map.save("before.html")
 
-        with self.with_weight(self.model.get_weight().flatten().cpu().numpy()):
+        with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
             yen_trips = [path for path, _ in g.yen(max_val[0][0], max_val[0][1], 1)]
         map = vis_map.base_edge_map(nodes, edges,
             tiles= 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7',
@@ -218,5 +218,5 @@ class Test:
         ).save("unlearned_edges.html")
 
 if __name__ == '__main__':
-    test = Test('cityindia')
-    test.vis_unlearned_edges()
+    test = Test('beijing', "./beijing.pkl", './beijing_model_weights.pth')
+    print(test.acc())
