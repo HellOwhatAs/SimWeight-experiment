@@ -44,6 +44,24 @@ class Test:
         with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
             acc = self.g.experiment(self.trips["test"])
         return baseline / len(self.trips["test"]), acc / len(self.trips["test"])
+    
+    def acc_jaccard(self):
+        baseline = self.g.experiment_path_jaccard(self.trips["test"])
+        with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
+            acc = self.g.experiment_path_jaccard(self.trips["test"])
+        return baseline / len(self.trips["test"]), acc / len(self.trips["test"])
+
+    def acc_lev_distance(self):
+        baseline = self.g.experiment_path_lev_distance(self.trips["test"])
+        with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
+            acc = self.g.experiment_path_lev_distance(self.trips["test"])
+        return baseline / len(self.trips["test"]), acc / len(self.trips["test"])
+    
+    def acc_top(self, k: int):
+        baseline = self.g.experiment_top(self.trips["test"], k)
+        with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
+            acc = self.g.experiment_top(self.trips["test"], k)
+        return baseline / len(self.trips["test"]), acc / len(self.trips["test"])
 
     def vis_yen(self, u: int = 10893, v: int = 7595, k: int = 200):
         nodes, edges, g = self.nodes, self.edges, self.g
@@ -218,5 +236,5 @@ class Test:
         ).save("unlearned_edges.html")
 
 if __name__ == '__main__':
-    test = Test('beijing', "./beijing.pkl", './beijing_model_weights.pth')
-    print(test.acc())
+    test = Test('harbin', "./harbin.pkl", './harbin_model_weights.pth')
+    print(test.acc_top(3))

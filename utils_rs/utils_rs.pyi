@@ -88,7 +88,22 @@ class DiGraph:
     def experiment_cme(self, trips: List[List[int]], weight: Optional[List[int]] = None) -> int:
         ...
 
-    def experiment_topk(self, trips: List[List[int]], k: int, weight: Optional[List[int]] = None) -> int:
+    def experiment_old_topk(self, trips: List[List[int]], k: int, weight: Optional[List[int]] = None) -> int:
         """
         a trip will acc if the top-k shortest path under given weight contains the trip
+        """
+
+    def experiment_top(self, trips: Dict[Tuple[int, int], List[List[int]]], k: int) -> float:
+        """
+        top k sim
+        """
+
+    def experiment_path_jaccard(self, trips: Dict[Tuple[int, int], List[List[int]]], weight: Optional[List[int]] = None) -> float:
+        """
+        Return sum(max(J(p, dijkstra(u, v)) for p in R) for (u, v), R in trips.values())
+        """
+
+    def experiment_path_lev_distance(self, trips: Dict[Tuple[int, int], List[List[int]]], weight: Optional[List[int]] = None) -> float:
+        """
+        Return sum(max((len(p) - lev_distance(p, dijkstra(u, v))) / len(p) for p in R) for (u, v), R in trips.values())
         """
