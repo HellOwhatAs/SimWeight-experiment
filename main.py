@@ -65,7 +65,7 @@ for epoch in pbar:
         seq, sep = batch_trips(chunk, g)
         trips_input = pack_sequence(seq, enforce_sorted=False).to(device)
         lengths = model(trips_input)
-        loss = bpr_loss_reverse(lengths, sep)
+        loss = bpr_loss_reverse(lengths, sep) + model.weight_factor().log().square().sum()
         loss.backward()
         loss_value += loss.item()
         optimizer.step()
