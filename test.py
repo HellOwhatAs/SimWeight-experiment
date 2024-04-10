@@ -9,9 +9,10 @@ import more_itertools
 from rower_model import Rower
 import torch
 import cmap
+import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
-import numpy as np
+plt.rc('font', family='Times New Roman')
 
 class Test:
     def __init__(self, city: str, data_fp: Optional[str] = None, model_fp: Optional[str] = None) -> None:
@@ -212,6 +213,10 @@ class Test:
         ```
         """
         if axes is None: axes = plt.subplot()
+
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.grid()
         
         old_weight = torch.tensor(self.g.weight)
         new_weight = torch.tensor(self.model.get_weight().flatten().cpu().numpy())
@@ -222,6 +227,8 @@ class Test:
         color = [cm(i).hex for i in cweight]
         axes.set_yscale('log')
         axes.scatter(range(len(c_weight)), c_weight, linewidths=0, edgecolors=None, alpha=0.1, c=color)
+        axes.set_xlabel('sorted edges')
+        axes.set_ylabel(r'$\frac{w(e)}{\mathrm{length}(e)}$')
 
     def vis_unlearned_edges(self):
         new_weight = torch.tensor(self.model.get_weight().flatten().cpu().numpy())
@@ -236,5 +243,7 @@ class Test:
         ).save("unlearned_edges.html")
 
 if __name__ == '__main__':
-    test = Test('harbin', "./harbin.pkl", './harbin_model_weights.pth')
-    print(test.acc_top(3))
+    test = Test('beijing')
+    ax = plt.subplot()
+    test.plot_weight_distribute(ax)
+    plt.show()
