@@ -1,7 +1,7 @@
 import argparse
 
 parser = argparse.ArgumentParser(description='training of Rower model')
-parser.add_argument('--log', type=str, default="accs.txt", help='log file name')
+parser.add_argument('--log', type=str, default="beijing_accs.txt", help='log file name')
 parser.add_argument('--city', type=str, default="beijing.pkl", help='city file name')
 parser.add_argument('--model', type=str, default="beijing_model_weights.pth", help='model weights file name')
 parser.add_argument('--device', type=str, default="cuda", help='device where model run')
@@ -65,7 +65,7 @@ for epoch in pbar:
         seq, sep = batch_trips(chunk, g)
         trips_input = pack_sequence(seq, enforce_sorted=False).to(device)
         lengths = model(trips_input)
-        loss = bpr_loss_reverse(lengths, sep)
+        loss = bpr_loss_reverse(lengths, sep) + model.weight_factor().log().square().sum()
         loss.backward()
         loss_value += loss.item()
         optimizer.step()
