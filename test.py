@@ -197,7 +197,7 @@ class Test:
         m = vis_map.colored_edge_map(self.nodes, self.edges, color, zoom_start=12)
         m.save("delta_weight.html")
 
-    def plot_weight_distribute(self, axes: Optional[Axes] = None):
+    def plot_weight_distribute(self, axes: Optional[Axes] = None, stroke_color: str = '#737373'):
         """
         ```
         test = Test('beijing')
@@ -214,9 +214,16 @@ class Test:
         """
         if axes is None: axes = plt.subplot()
 
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.grid()
+        axes.spines['top'].set_visible(False)
+        axes.spines['right'].set_visible(False)
+        axes.grid()
+
+        ax.spines['bottom'].set_color(stroke_color) 
+        ax.spines['left'].set_color(stroke_color)
+        ax.xaxis.label.set_color(stroke_color)
+        ax.yaxis.label.set_color(stroke_color)
+        ax.tick_params(axis='x', colors=stroke_color)
+        ax.tick_params(axis='y', colors=stroke_color)
         
         old_weight = torch.tensor(self.g.weight)
         new_weight = torch.tensor(self.model.get_weight().flatten().cpu().numpy())
@@ -246,4 +253,4 @@ if __name__ == '__main__':
     test = Test('beijing')
     ax = plt.subplot()
     test.plot_weight_distribute(ax)
-    plt.show()
+    plt.savefig('cmap.png', transparent=True, dpi=600)
