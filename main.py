@@ -36,7 +36,7 @@ with open(city_fname, "rb") as f:
     (nodes, edges, trips) = tmp
 
 random.seed(42)
-trips_train = {k: v for k, v in trips["test"].items()}
+trips_train = list(trips["test"].items())
 trips_test = {k: v for k, v in random.sample(list(trips["valid"].items()), 5000)}
 total_test = sum(len(i) for i in trips_test.values())
 
@@ -61,7 +61,8 @@ model.train()
 pbar = tqdm(range(epoch))
 for epoch in pbar:
     loss_value = 0
-    for chunk in chunked(trips_train.items(), chunk_size):
+    random.shuffle(trips_train)
+    for chunk in chunked(trips_train, chunk_size):
         seq, sep = batch_trips(chunk, g)
         trips_input = pack_sequence(seq, enforce_sorted=False).to(device)
         lengths = model(trips_input)
