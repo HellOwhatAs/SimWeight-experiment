@@ -75,10 +75,12 @@ class Test:
             u: {
                 'popup': "start",
                 'color': '#0000FF',
+                'radius': 20,
             },
             v: {
                 'popup': "target",
                 'color': '#A020F0',
+                'radius': 20,
             }
         })
         map.save("yen.html")
@@ -218,12 +220,12 @@ class Test:
         axes.spines['right'].set_visible(False)
         axes.grid()
 
-        ax.spines['bottom'].set_color(stroke_color) 
-        ax.spines['left'].set_color(stroke_color)
-        ax.xaxis.label.set_color(stroke_color)
-        ax.yaxis.label.set_color(stroke_color)
-        ax.tick_params(axis='x', colors=stroke_color)
-        ax.tick_params(axis='y', colors=stroke_color)
+        axes.spines['bottom'].set_color(stroke_color) 
+        axes.spines['left'].set_color(stroke_color)
+        axes.xaxis.label.set_color(stroke_color)
+        axes.yaxis.label.set_color(stroke_color)
+        axes.tick_params(axis='x', colors=stroke_color)
+        axes.tick_params(axis='y', colors=stroke_color)
         
         old_weight = torch.tensor(self.g.weight)
         new_weight = torch.tensor(self.model.get_weight().flatten().cpu().numpy())
@@ -249,8 +251,32 @@ class Test:
             color='black'
         ).save("unlearned_edges.html")
 
+    def vis_diff_path(self, u: int = 2408, v: int = 171):
+        map = vis_map.base_edge_map(self.nodes, self.edges,
+            tiles= 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7',
+            attr='高德-常规图', zoom_start=12)
+        p1 = self.trips['valid'][u, v][0]
+        with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
+            p2, = [path for path, _ in self.g.yen(u, v, 1)]
+        p1, p2 = set(p1), set(p2)
+        mixed = '#8C7855'
+        vis_map.add_edges(map, self.nodes, self.edges, p1.union(p2), color=mixed, weight=5)
+        vis_map.add_edges(map, self.nodes, self.edges, p1 - p2, color='#4AAD52', weight=5)
+        vis_map.add_edges(map, self.nodes, self.edges, p2 - p1, color='#CE4257', weight=5)
+        vis_map.add_nodes(map, self.nodes, {
+            u: {
+                'popup': "start",
+                'color': '#0000FF',
+                'radius': 20,
+            },
+            v: {
+                'popup': "target",
+                'color': '#A020F0',
+                'radius': 20,
+            }
+        })
+        map.save('diff_path.html')
+
 if __name__ == '__main__':
     test = Test('beijing')
-    ax = plt.subplot()
-    test.plot_weight_distribute(ax)
-    plt.savefig('cmap.png', transparent=True, dpi=600)
+    test.vis_diff_path()
