@@ -34,35 +34,35 @@ class Test:
         finally: self.g.weight = old_weight
 
     def acc_old(self):
-        trips_test = list(more_itertools.flatten(self.trips["test"].values()))
+        trips_test = list(more_itertools.flatten(self.trips["valid"].values()))
         baseline = self.g.experiment_old(trips_test)
         with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
             acc = self.g.experiment_old(trips_test)
         return baseline / len(trips_test), acc / len(trips_test)
 
     def acc(self):
-        baseline = self.g.experiment(self.trips["test"])
+        baseline = self.g.experiment(self.trips["valid"])
         with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
-            acc = self.g.experiment(self.trips["test"])
-        return baseline / len(self.trips["test"]), acc / len(self.trips["test"])
+            acc = self.g.experiment(self.trips["valid"])
+        return baseline / len(self.trips["valid"]), acc / len(self.trips["valid"])
     
     def acc_jaccard(self):
-        baseline = self.g.experiment_path_jaccard(self.trips["test"])
+        baseline = self.g.experiment_path_jaccard(self.trips["valid"])
         with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
-            acc = self.g.experiment_path_jaccard(self.trips["test"])
-        return baseline / len(self.trips["test"]), acc / len(self.trips["test"])
+            acc = self.g.experiment_path_jaccard(self.trips["valid"])
+        return baseline / len(self.trips["valid"]), acc / len(self.trips["valid"])
 
     def acc_lev_distance(self):
-        baseline = self.g.experiment_path_lev_distance(self.trips["test"])
+        baseline = self.g.experiment_path_lev_distance(self.trips["valid"])
         with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
-            acc = self.g.experiment_path_lev_distance(self.trips["test"])
-        return baseline / len(self.trips["test"]), acc / len(self.trips["test"])
+            acc = self.g.experiment_path_lev_distance(self.trips["valid"])
+        return baseline / len(self.trips["valid"]), acc / len(self.trips["valid"])
     
     def acc_top(self, k: int):
-        baseline = self.g.experiment_top(self.trips["test"], k)
+        baseline = self.g.experiment_top(self.trips["valid"], k)
         with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
-            acc = self.g.experiment_top(self.trips["test"], k)
-        return baseline / len(self.trips["test"]), acc / len(self.trips["test"])
+            acc = self.g.experiment_top(self.trips["valid"], k)
+        return baseline / len(self.trips["valid"]), acc / len(self.trips["valid"])
 
     def vis_yen(self, u: int = 10893, v: int = 7595, k: int = 200):
         nodes, edges, g = self.nodes, self.edges, self.g
@@ -278,5 +278,12 @@ class Test:
         map.save('diff_path.html')
 
 if __name__ == '__main__':
-    test = Test('beijing')
-    test.vis_diff_path()
+    for city in ('beijing', 'harbin', 'cityindia', 'porto'):
+        test = Test(city, data_fp=f"D:/Downloads/data/{city}.pkl", model_fp=f"D:/Downloads/archive/{city}_model_weights.pth")
+        fmt = city + ' {\n' + (
+            f'    Sim = {test.acc()},\n' +
+            # f'    SimTop3 = {test.acc_top(3)},\n' + # too slow
+            f'    Jaccard = {test.acc_jaccard()},\n' +
+            f'    LevDistance = {test.acc_lev_distance()}\n'
+        ) + '}'
+        print(fmt)
