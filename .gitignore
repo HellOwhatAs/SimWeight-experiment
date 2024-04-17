@@ -1,11 +1,13 @@
 __pycache__/
-.venv/
+*venv/
 preprocessed_data/
+__MACOSX/
 results/
 *.pkl
 *.db
 *.html
 *accs.txt
+*_nohup.out
 *.pth
 
 /*.png
