@@ -51,6 +51,12 @@ class Test:
         with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
             acc = self.g.experiment_path_jaccard(self.trips["valid"])
         return baseline / len(self.trips["valid"]), acc / len(self.trips["valid"])
+    
+    def acc_lengths_jaccard(self):
+        baseline = self.g.experiment_path_lengths_jaccard(self.trips["valid"], self.edges["length"])
+        with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
+            acc = self.g.experiment_path_lengths_jaccard(self.trips["valid"], self.edges["length"])
+        return baseline / len(self.trips["valid"]), acc / len(self.trips["valid"])
 
     def acc_lev_distance(self):
         baseline = self.g.experiment_path_lev_distance(self.trips["valid"])
@@ -64,7 +70,7 @@ class Test:
             acc = self.g.experiment_top(self.trips["valid"], k)
         return baseline / len(self.trips["valid"]), acc / len(self.trips["valid"])
 
-    def vis_yen(self, u: int = 10893, v: int = 7595, k: int = 200):
+    def vis_yen(self, u: int = 10893, v: int = 7595, k: int = 200, fname: Optional[str] = None):
         nodes, edges, g = self.nodes, self.edges, self.g
         map = vis_map.base_edge_map(nodes, edges,
             tiles= 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7',
@@ -83,9 +89,10 @@ class Test:
                 'radius': 20,
             }
         })
-        map.save("yen.html")
+        if fname is not None: map.save(fname)
+        return map
 
-    def vis_bidijkstra(self, u: int = 10893, v: int = 7595, k: int = 200):
+    def vis_bidijkstra(self, u: int = 10893, v: int = 7595, k: int = 200, fname: Optional[str] = None):
         nodes, edges, g = self.nodes, self.edges, self.g
         map = vis_map.base_edge_map(nodes, edges,
             tiles= 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7',
@@ -102,9 +109,10 @@ class Test:
                 'color': '#A020F0',
             }
         })
-        map.save("bidijkstra.html")
+        if fname is not None: map.save(fname)
+        return map
 
-    def vis_why_dynamic(self):
+    def vis_why_dynamic(self, fname: Optional[str] = None):
         nodes, edges, trips, g = self.nodes, self.edges, self.trips, self.g
         c: Dict[Tuple[int, int], Set[Tuple[int]]] = {}
         tmp = edges[["u", "v"]].to_numpy().tolist()
@@ -131,7 +139,8 @@ class Test:
                 'color': '#A020F0',
             }
         })
-        map.save("why_dynamic.html")
+        if fname is not None: map.save(fname)
+        return map
 
     def vis_improve(self):
         nodes, edges, trips, g = self.nodes, self.edges, self.trips, self.g
@@ -188,7 +197,7 @@ class Test:
         equalized_data = np.interp(data, bins[:-1], cdf_normalized)
         return equalized_data
 
-    def vis_delta_weight(self):
+    def vis_delta_weight(self, fname: Optional[str] = None):
         old_weight = torch.tensor(self.g.weight)
         new_weight = torch.tensor(self.model.get_weight().flatten().cpu().numpy())
         c_weight = np.array(sorted((new_weight / old_weight / 2)))
@@ -197,7 +206,8 @@ class Test:
         cm = cmap.Colormap('viridis_r')
         color = [cm(i).hex for i in cweight]
         m = vis_map.colored_edge_map(self.nodes, self.edges, color, zoom_start=12)
-        m.save("delta_weight.html")
+        if fname is not None: m.save(fname)
+        return m
 
     def plot_weight_distribute(self, axes: Optional[Axes] = None, stroke_color: str = '#737373'):
         """
@@ -239,19 +249,21 @@ class Test:
         axes.set_xlabel('sorted edges')
         axes.set_ylabel(r'$\frac{w(e)}{\mathrm{length}(e)}$')
 
-    def vis_unlearned_edges(self):
+    def vis_unlearned_edges(self, fname: Optional[str] = None):
         new_weight = torch.tensor(self.model.get_weight().flatten().cpu().numpy())
         tmp_edges = self.edges.copy(deep=True)
         tmp_edges['weight'] = new_weight
 
-        vis_map.base_edge_map(
+        map = vis_map.base_edge_map(
             self.nodes,
             tmp_edges.loc[(tmp_edges['length'] == tmp_edges['weight']).abs() < 1e-5],
             zoom_start=12,
             color='black'
-        ).save("unlearned_edges.html")
+        )        
+        if fname is not None: map.save("unlearned_edges.html")
+        return map
 
-    def vis_diff_path(self, u: int = 2408, v: int = 171):
+    def vis_diff_path(self, u: int = 2408, v: int = 171, fname: Optional[str] = None):
         map = vis_map.base_edge_map(self.nodes, self.edges,
             tiles= 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7',
             attr='高德-常规图', zoom_start=12)
@@ -275,7 +287,8 @@ class Test:
                 'radius': 20,
             }
         })
-        map.save('diff_path.html')
+        if fname is not None: map.save(fname)
+        return map
 
 if __name__ == '__main__':
     for city in ('beijing', 'harbin', 'cityindia', 'porto'):
@@ -284,6 +297,7 @@ if __name__ == '__main__':
             f'    Sim = {test.acc()},\n' +
             # f'    SimTop3 = {test.acc_top(3)},\n' + # too slow
             f'    Jaccard = {test.acc_jaccard()},\n' +
+            f'    LengthsJaccard = {test.acc_lengths_jaccard()},\n' +
             f'    LevDistance = {test.acc_lev_distance()}\n'
         ) + '}'
         print(fmt)

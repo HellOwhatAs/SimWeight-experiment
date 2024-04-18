@@ -103,6 +103,11 @@ class DiGraph:
         Return sum(max(J(p, dijkstra(u, v)) for p in R) for (u, v), R in trips.values())
         """
 
+    def experiment_path_lengths_jaccard(self, trips: Dict[Tuple[int, int], List[List[int]]], lengths: List[float], weight: Optional[List[int]] = None) -> float:
+        """
+        `experiment_path_jaccard` but edges are weighted by `lengths`
+        """
+
     def experiment_path_lev_distance(self, trips: Dict[Tuple[int, int], List[List[int]]], weight: Optional[List[int]] = None) -> float:
         """
         Return sum(max((len(p) - lev_distance(p, dijkstra(u, v))) / len(p) for p in R) for (u, v), R in trips.values())
