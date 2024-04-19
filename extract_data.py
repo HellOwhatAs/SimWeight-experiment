@@ -1,5 +1,6 @@
 import os
-from typing import List, Tuple, Dict, Literal
+from typing import List, Tuple, Dict
+from typing_extensions import Literal
 import geopandas as gpd
 import pandas as pd
 import pickle
