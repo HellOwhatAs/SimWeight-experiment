@@ -291,7 +291,7 @@ class Test:
         return map
 
 if __name__ == '__main__':
-    for city in ('beijing', 'harbin', 'cityindia', 'porto'):
+    for city in ('beijing', 'harbin', 'chengdu', 'cityindia', 'porto'):
         test = Test(city, data_fp=f"D:/Downloads/data/{city}.pkl", model_fp=f"D:/Downloads/archive/{city}_model_weights.pth")
         fmt = city + ' {\n' + (
             f'    Sim = {test.acc()},\n' +
