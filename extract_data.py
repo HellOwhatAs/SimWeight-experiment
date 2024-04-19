@@ -23,7 +23,7 @@ def remove_loops(path):
         current = last_occ[path[current]] + 1
     return reduced
 
-def groupy_uv(trips: List[List[int]], edges: List[Tuple[int, int]]) -> Dict[Tuple[int, int], List[List[int]]]:
+def groupby_uv(trips: List[List[int]], edges: List[Tuple[int, int]]) -> Dict[Tuple[int, int], List[List[int]]]:
     uv2trips: Dict[Tuple[int, int], List[List[int]]] = {}
     for trip in trips:
         key = (edges[trip[0]][0], edges[trip[-1]][1])
@@ -63,9 +63,9 @@ def extract(path: str = "./preprocessed_data/beijing_data", removeloops: bool = 
     data_valid = [t for (_, t) in data_valid if len(t) >= 5]
 
     edges_list = edge_df[["u", "v"]].to_numpy().tolist()
-    data_test = groupy_uv(data_test, edges_list)
-    data_train = groupy_uv(data_train, edges_list)
-    data_valid = groupy_uv(data_valid, edges_list)
+    data_test = groupby_uv(data_test, edges_list)
+    data_train = groupby_uv(data_train, edges_list)
+    data_valid = groupby_uv(data_valid, edges_list)
 
     return node_df, edge_df, {"train": data_train, "test": data_test, "valid": data_valid}
 
