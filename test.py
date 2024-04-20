@@ -57,6 +57,18 @@ class Test:
         with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
             acc = self.g.experiment_path_lengths_jaccard(self.trips["valid"], self.edges["length"])
         return baseline / len(self.trips["valid"]), acc / len(self.trips["valid"])
+    
+    def acc_neuromlr_precision(self):
+        baseline = self.g.experiment_neuromlr_precision(self.trips["valid"], self.edges["length"])
+        with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
+            acc = self.g.experiment_neuromlr_precision(self.trips["valid"], self.edges["length"])
+        return baseline / len(self.trips["valid"]), acc / len(self.trips["valid"])
+    
+    def acc_neuromlr_recall(self):
+        baseline = self.g.experiment_neuromlr_recall(self.trips["valid"], self.edges["length"])
+        with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
+            acc = self.g.experiment_neuromlr_recall(self.trips["valid"], self.edges["length"])
+        return baseline / len(self.trips["valid"]), acc / len(self.trips["valid"])
 
     def acc_lev_distance(self):
         baseline = self.g.experiment_path_lev_distance(self.trips["valid"])
@@ -298,6 +310,8 @@ if __name__ == '__main__':
             # f'    SimTop3 = {test.acc_top(3)},\n' + # too slow
             f'    Jaccard = {test.acc_jaccard()},\n' +
             f'    LengthsJaccard = {test.acc_lengths_jaccard()},\n' +
-            f'    LevDistance = {test.acc_lev_distance()}\n'
+            f'    LevDistance = {test.acc_lev_distance()}\n' +
+            f'    Precision = {test.acc_neuromlr_precision()},\n' +
+            f'    Recall = {test.acc_neuromlr_recall()},\n'
         ) + '}'
         print(fmt)

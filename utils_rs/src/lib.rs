@@ -316,6 +316,38 @@ impl DiGraph {
         }).sum::<OrderedFloat<f64>>().0
     }
 
+    pub fn experiment_neuromlr_precision(&self, trips: HashMap<(usize, usize), Vec<Vec<usize>>>, lengths: Vec<f64>, weight: Option<Vec<f64>>) -> f64 {
+        let weight = Self::determin_weight(&self.weight, &weight).expect("must specify weight");
+        assert!(lengths.len() == weight.len(), "size of `lengths` must equal to num of edges");
+        let successors = |n: &usize| {
+            self.adjlist[*n].iter().map(|(t, edge_idx)| (*t, OrderedFloat(weight[*edge_idx]), *edge_idx))
+        };
+        trips.into_par_iter().map(|((u, v), trips)| {
+            let trips: HashSet<&Vec<usize>> = HashSet::from_iter(trips.iter());
+            let (pred, _) = dijkstra_eid(&u, successors, |p| *p == v).unwrap();
+            trips.into_iter().map(|trip| {
+                let (a, b): (HashSet<&usize>, HashSet<&usize>) = (HashSet::from_iter(pred.iter()), HashSet::from_iter(trip));
+                OrderedFloat::from(a.intersection(&b).map(|&&i| lengths[i]).sum::<f64>() / a.iter().map(|&&i| lengths[i]).sum::<f64>())
+            }).max().unwrap()
+        }).sum::<OrderedFloat<f64>>().0
+    }
+
+    pub fn experiment_neuromlr_recall(&self, trips: HashMap<(usize, usize), Vec<Vec<usize>>>, lengths: Vec<f64>, weight: Option<Vec<f64>>) -> f64 {
+        let weight = Self::determin_weight(&self.weight, &weight).expect("must specify weight");
+        assert!(lengths.len() == weight.len(), "size of `lengths` must equal to num of edges");
+        let successors = |n: &usize| {
+            self.adjlist[*n].iter().map(|(t, edge_idx)| (*t, OrderedFloat(weight[*edge_idx]), *edge_idx))
+        };
+        trips.into_par_iter().map(|((u, v), trips)| {
+            let trips: HashSet<&Vec<usize>> = HashSet::from_iter(trips.iter());
+            let (pred, _) = dijkstra_eid(&u, successors, |p| *p == v).unwrap();
+            trips.into_iter().map(|trip| {
+                let (a, b): (HashSet<&usize>, HashSet<&usize>) = (HashSet::from_iter(pred.iter()), HashSet::from_iter(trip));
+                OrderedFloat::from(a.intersection(&b).map(|&&i| lengths[i]).sum::<f64>() / b.iter().map(|&&i| lengths[i]).sum::<f64>())
+            }).max().unwrap()
+        }).sum::<OrderedFloat<f64>>().0
+    }
+
     pub fn experiment_path_lev_distance(&self, trips: HashMap<(usize, usize), Vec<Vec<usize>>>, weight: Option<Vec<f64>>) -> f64 {
         let weight = Self::determin_weight(&self.weight, &weight).expect("must specify weight");
         let successors = |n: &usize| {
