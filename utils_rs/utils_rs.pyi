@@ -108,14 +108,9 @@ class DiGraph:
         `experiment_path_jaccard` but edges are weighted by `lengths`
         """
 
-    def experiment_neuromlr_precision(self, trips: Dict[Tuple[int, int], List[List[int]]], lengths: List[float], weight: Optional[List[int]] = None) -> float:
+    def experiment_neuromlr(self, trips: Dict[Tuple[int, int], List[List[int]]], lengths: List[float], weight: Optional[List[int]] = None) -> Tuple[float, float]:
         """
-        Precision metric of NeuroMLR
-        """
-
-    def experiment_neuromlr_recall(self, trips: Dict[Tuple[int, int], List[List[int]]], lengths: List[float], weight: Optional[List[int]] = None) -> float:
-        """
-        Recall metric of NeuroMLR
+        (Precision, Recall), metrics of NeuroMLR
         """
 
     def experiment_path_lev_distance(self, trips: Dict[Tuple[int, int], List[List[int]]], weight: Optional[List[int]] = None) -> float:
