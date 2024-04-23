@@ -58,17 +58,14 @@ class Test:
             acc = self.g.experiment_path_lengths_jaccard(self.trips["valid"], self.edges["length"])
         return baseline / len(self.trips["valid"]), acc / len(self.trips["valid"])
     
-    def acc_neuromlr_precision(self):
-        baseline = self.g.experiment_neuromlr_precision(self.trips["valid"], self.edges["length"])
+    def acc_neuromlr(self):
+        baseline_precision, baseline_recall = self.g.experiment_neuromlr(self.trips["valid"], self.edges["length"])
         with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
-            acc = self.g.experiment_neuromlr_precision(self.trips["valid"], self.edges["length"])
-        return baseline / len(self.trips["valid"]), acc / len(self.trips["valid"])
-    
-    def acc_neuromlr_recall(self):
-        baseline = self.g.experiment_neuromlr_recall(self.trips["valid"], self.edges["length"])
-        with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
-            acc = self.g.experiment_neuromlr_recall(self.trips["valid"], self.edges["length"])
-        return baseline / len(self.trips["valid"]), acc / len(self.trips["valid"])
+            precision, recall = self.g.experiment_neuromlr(self.trips["valid"], self.edges["length"])
+        return (
+            (baseline_precision / len(self.trips["valid"]), precision / len(self.trips["valid"])),
+            (baseline_recall / len(self.trips["valid"]), recall / len(self.trips["valid"]))
+        )
 
     def acc_lev_distance(self):
         baseline = self.g.experiment_path_lev_distance(self.trips["valid"])
