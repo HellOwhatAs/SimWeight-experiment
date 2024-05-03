@@ -3,8 +3,9 @@ from typing import Dict, List, Set, Tuple, Optional
 from contextlib import contextmanager
 import pickle
 import utils_rs
+from math import inf
 from tqdm import tqdm
-import vis_map
+import vis_map, folium
 import more_itertools
 from rower_model import Rower
 import torch
@@ -165,8 +166,9 @@ class Test:
         map = vis_map.base_edge_map(nodes, edges,
             tiles= 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7',
             attr='高德-常规图')
-        vis_map.add_trips(map, nodes, edges, max_val[1], color='#4AAD52')
-        vis_map.add_trips(map, nodes, edges, yen_trips, color="#CE4257")
+        # vis_map.add_trips(map, nodes, edges, max_val[1], color='#4AAD52')
+        # vis_map.add_trips(map, nodes, edges, yen_trips, color="#CE4257")
+        vis_map.add_edges(map, self.nodes, self.edges, yen_trips[0], color='#4AAD52', weight=5)
         vis_map.add_nodes(map, nodes, {
             max_val[0][0]: {
                 'popup': f"start: {max_val[0][0]}",
@@ -184,8 +186,9 @@ class Test:
         map = vis_map.base_edge_map(nodes, edges,
             tiles= 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7',
             attr='高德-常规图')
-        vis_map.add_trips(map, nodes, edges, max_val[1], color='#4AAD52')
-        vis_map.add_trips(map, nodes, edges, yen_trips, color="#CE4257")
+        # vis_map.add_trips(map, nodes, edges, max_val[1], color='#4AAD52')
+        # vis_map.add_trips(map, nodes, edges, yen_trips, color="#CE4257")
+        vis_map.add_edges(map, self.nodes, self.edges, yen_trips[0], color='#4AAD52', weight=5)
         vis_map.add_nodes(map, nodes, {
             max_val[0][0]: {
                 'popup': f"start: {max_val[0][0]}",
@@ -298,6 +301,52 @@ class Test:
         })
         if fname is not None: map.save(fname)
         return map
+    
+    def vis_interventionability(self, u: int = 10893, v: int = 7595, x: float = 116.42375, y: float = 39.8697425, r: float = 0.010):
+        map = vis_map.base_edge_map(self.nodes, self.edges,
+            tiles= 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7',
+            attr='高德-常规图', zoom_start=12)
+        with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
+            path, _ = self.g.dijkstra(u, v)
+        vis_map.add_edges(map, self.nodes, self.edges, path, color='#4AAD52', weight=5)
+        vis_map.add_nodes(map, self.nodes, {
+            10893: {
+                'color': '#0000FF',
+            },
+            7595: {
+                'color': '#A020F0',
+            }
+        })
+        map.save('interventionability_before.html')
+
+        closed_nodes = set(idx for idx, i in self.nodes.iterrows() if (i['x'] - x)**2 + (i['y'] - y)**2 <= r**2)
+        closed_edges = [idx for idx, i in self.edges.iterrows() if (i['u'] in closed_nodes or i['v'] in closed_nodes)]
+        map = vis_map.base_edge_map(self.nodes, self.edges,
+            tiles= 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7',
+            attr='高德-常规图', zoom_start=12)
+        folium.Circle(
+            (y, x),
+            radius=round(r * 1e5),
+            color = '#FF0000',
+            stroke=False,
+            fillOpacity = 0.3,
+            fill=True
+        ).add_to(map)
+        weights = self.model.get_weight().flatten().cpu().numpy()
+        for e in closed_edges: weights[e] = inf
+        with self.weight_being(weights):
+            path2, _ = self.g.dijkstra(u, v)
+        vis_map.add_edges(map, self.nodes, self.edges, path2, color='#4AAD52', weight=5)
+        vis_map.add_nodes(map, self.nodes, {
+            10893: {
+                'color': '#0000FF',
+            },
+            7595: {
+                'color': '#A020F0',
+            }
+        })
+        map.save('interventionability_after.html')
+
 
 if __name__ == '__main__':
     for city in ('beijing', 'harbin', 'chengdu', 'cityindia', 'porto'):
