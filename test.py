@@ -21,7 +21,11 @@ class Test:
 
         with open(data_fp if data_fp is not None else f"./{city}.pkl", "rb") as f:
             tmp: Result = pickle.load(f)
-        (self.nodes, self.edges, self.trips) = tmp
+        (self.nodes, self.edges, trips) = tmp
+        self.trips = {
+            k: {k1: [i for i, _ in v1] for k1, v1 in v.items()}
+            for k, v in trips.items()
+        }
         self.g = utils_rs.DiGraph(self.nodes.shape[0], [(i['u'], i['v']) for _, i in self.edges.iterrows()], self.edges["length"])
 
         self.model = Rower(self.edges)
@@ -350,14 +354,14 @@ class Test:
 
 if __name__ == '__main__':
     for city in ('beijing', 'harbin', 'chengdu', 'cityindia', 'porto'):
-        test = Test(city, data_fp=f"D:/Downloads/data/{city}.pkl", model_fp=f"D:/Downloads/archive/{city}_model_weights.pth")
+        test = Test(city, data_fp=f"./{city}.pkl", model_fp=f"./{city}_model_weights.pth")
         fmt = city + ' {\n' + (
             f'    Sim = {test.acc()},\n' +
             # f'    SimTop3 = {test.acc_top(3)},\n' + # too slow
             f'    Jaccard = {test.acc_jaccard()},\n' +
             f'    LengthsJaccard = {test.acc_lengths_jaccard()},\n' +
             f'    LevDistance = {test.acc_lev_distance()}\n' +
-            f'    Precision = {test.acc_neuromlr_precision()},\n' +
-            f'    Recall = {test.acc_neuromlr_recall()},\n'
+            f'    Precision = {(prec_recall := test.acc_neuromlr())[0]},\n' +
+            f'    Recall = {prec_recall[1]},\n'
         ) + '}'
         print(fmt)
