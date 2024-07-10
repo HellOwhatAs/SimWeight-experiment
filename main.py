@@ -1,4 +1,5 @@
 import argparse
+from typing import Optional
 
 parser = argparse.ArgumentParser(description='training of Rower model')
 parser.add_argument('--log', type=str, default="beijing_accs.txt", help='log file name')
@@ -7,13 +8,19 @@ parser.add_argument('--model', type=str, default="beijing_model_weights.pth", he
 parser.add_argument('--device', type=str, default="cuda", help='device where model run')
 parser.add_argument('--epoch', type=int, default=4000, help='number training runs')
 parser.add_argument('--chunk', type=int, default=2 ** 16, help='chunk size')
+parser.add_argument('--k', type=int, default=None, help='k sampling paths')
+parser.add_argument('--train_num', type=int, default=None, help='num of paths used in training')
+parser.add_argument('--test_num', type=int, default=5000, help='num of paths used in testing')
 args = parser.parse_args()
-log_fname = getattr(args, 'log')
-city_fname = getattr(args, 'city')
-model_fname = getattr(args, 'model')
-device_name = getattr(args, 'device')
-epoch = getattr(args, 'epoch')
-chunk_size = getattr(args, 'chunk')
+log_fname: str = getattr(args, 'log')
+city_fname: str = getattr(args, 'city')
+model_fname: str = getattr(args, 'model')
+device_name: str = getattr(args, 'device')
+epoch: int = getattr(args, 'epoch')
+chunk_size: int = getattr(args, 'chunk')
+k: Optional[int] = getattr(args, 'k')
+train_num: Optional[int] = getattr(args, 'train_num')
+test_num: int = getattr(args, 'test_num')
 
 from extract_data import Result
 from typing import List
@@ -36,8 +43,16 @@ with open(city_fname, "rb") as f:
     (nodes, edges, trips) = tmp
 
 random.seed(42)
-trips_train = list(trips["test"].items())
-trips_test = {k: v for k, v in random.sample(list(trips["valid"].items()), 5000)}
+trips_train = [(k, [i for i, _ in v]) for k, v in (
+    trips["test"].items()
+    if train_num is None else 
+    random.sample(trips["test"].items(), train_num)
+)]
+trips_test = {k: v for k, v in [(k, [i for i, _ in v]) for k, v in (
+    trips["valid"].items()
+    if test_num is None else
+    random.sample(trips["valid"].items(), test_num)
+)]}
 total_test = sum(len(i) for i in trips_test.values())
 
 g = utils_rs.DiGraph(nodes.shape[0], [(i['u'], i['v']) for _, i in edges.iterrows()], edges["length"])
@@ -63,7 +78,7 @@ for epoch in pbar:
     loss_value = 0
     random.shuffle(trips_train)
     for chunk in chunked(trips_train, chunk_size):
-        seq, sep = batch_trips(chunk, g)
+        seq, sep = batch_trips(chunk, g, k)
         trips_input = pack_sequence(seq, enforce_sorted=False).to(device)
         lengths = model(trips_input)
         loss = bpr_loss_reverse(lengths, sep)
@@ -81,5 +96,3 @@ for epoch in pbar:
     if acc > best_acc:
         best_acc = acc
         save_checkpoint()
-
-save_checkpoint()

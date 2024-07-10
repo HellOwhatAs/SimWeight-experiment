@@ -1,4 +1,4 @@
-from typing import Tuple, Union, List
+from typing import Tuple, Union, List, Optional
 from more_itertools import pairwise, flatten
 import pandas as pd
 import torch
@@ -49,10 +49,10 @@ class Rower(torch.nn.Module):
     def get_weight(self):
         with torch.no_grad(): return self.grad_weight()
 
-def batch_trips(chunk: List[Tuple[Tuple[int, int], List[List[int]]]], g: utils_rs.DiGraph) -> Tuple[List[torch.LongTensor], List[Tuple[int, int]]]:
+def batch_trips(chunk: List[Tuple[Tuple[int, int], List[List[int]]]], g: utils_rs.DiGraph, k: Optional[int] = None) -> Tuple[List[torch.LongTensor], List[Tuple[int, int]]]:
     seq: List[torch.LongTensor] = []
     sep: List[Tuple[int, int]] = []
-    negative_samples_chunk = g.par_bidirectional_dijkstra([(u, v, len(paths)) for (u, v), paths in chunk])
+    negative_samples_chunk = g.par_bidirectional_dijkstra([(u, v, len(paths) if k is None else k) for (u, v), paths in chunk])
     for (_, positive_samples), negative_samples in zip(chunk, negative_samples_chunk):
         seq.extend(torch.LongTensor(trip) for trip in positive_samples)
         seq.extend(torch.LongTensor(trip) for trip in negative_samples)
