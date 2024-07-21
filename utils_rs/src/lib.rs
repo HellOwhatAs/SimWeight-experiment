@@ -97,6 +97,14 @@ impl DiGraph {
         }
         dcol[t_last + 1]
     }
+
+    fn unpairwise<T>(mut it: impl Iterator<Item = (T, T)>) -> Vec<T> {
+        if let Some(first) = it.next() {
+            [first.0, first.1].into_iter().chain(it.map(|e| e.1)).collect::<Vec<_>>()
+        } else {
+            vec![]
+        }
+    }
 }
 
 
@@ -318,23 +326,23 @@ impl DiGraph {
 
     pub fn experiment_neuromlr(&self, trips: HashMap<(usize, usize), Vec<Vec<usize>>>, lengths: Vec<f64>, weight: Option<Vec<f64>>) -> (f64, f64) {
         let weight = Self::determin_weight(&self.weight, &weight).expect("must specify weight");
-        assert!(lengths.len() == weight.len(), "size of `lengths` must equal to num of edges");
+        assert!(lengths.len() == self.n, "size of `lengths` must equal to num of nodes");
         let successors = |n: &usize| {
             self.adjlist[*n].iter().map(|(t, edge_idx)| (*t, OrderedFloat(weight[*edge_idx]), *edge_idx))
         };
         let (OrderedFloat(precision), OrderedFloat(recall)) = trips.into_par_iter().map(|((u, v), trips)| {
             let trips: HashSet<&Vec<usize>> = HashSet::from_iter(trips.iter());
             let (pred, _) = dijkstra_eid(&u, successors, |p| *p == v).unwrap();
-            (
-                trips.iter().map(|&trip| {
-                    let (a, b): (HashSet<&usize>, HashSet<&usize>) = (HashSet::from_iter(pred.iter()), HashSet::from_iter(trip));
-                    OrderedFloat::from(a.intersection(&b).map(|&&i| lengths[i]).sum::<f64>() / a.iter().map(|&&i| lengths[i]).sum::<f64>())
-                }).max().unwrap(),
-                trips.iter().map(|&trip| {
-                    let (a, b): (HashSet<&usize>, HashSet<&usize>) = (HashSet::from_iter(pred.iter()), HashSet::from_iter(trip));
-                    OrderedFloat::from(a.intersection(&b).map(|&&i| lengths[i]).sum::<f64>() / b.iter().map(|&&i| lengths[i]).sum::<f64>())
-                }).max().unwrap()
-            )
+            let (mut prec, mut reca) = (OrderedFloat(0.0), OrderedFloat(0.0));
+            for trip in trips {
+                let (a, b): (HashSet<&usize>, HashSet<&usize>) = (HashSet::from_iter(pred.iter()), HashSet::from_iter(trip));
+                let inter: OrderedFloat<f64> = Self::unpairwise(a.intersection(&b).map(|&&e| self.edges[e])).iter().map(|&i| OrderedFloat(lengths[i])).sum();
+                let length_a: OrderedFloat<f64> = Self::unpairwise(a.iter().map(|&&e| self.edges[e])).iter().map(|&i| OrderedFloat(lengths[i])).sum();
+                let length_b: OrderedFloat<f64> = Self::unpairwise(b.iter().map(|&&e| self.edges[e])).iter().map(|&i| OrderedFloat(lengths[i])).sum();
+                prec = prec.max(inter / length_a);
+                reca = reca.max(inter / length_b);
+            }
+            (prec, reca)
         }).reduce(|| (OrderedFloat::from(0.0), OrderedFloat::from(0.0)), |a, b| (a.0 + b.0, a.1 + b.1));
         (precision, recall)
     }

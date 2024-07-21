@@ -1,4 +1,4 @@
-from extract_data import Result
+from extract_data import Result, groupby_io
 from typing import Dict, List, Set, Tuple, Optional
 from contextlib import contextmanager
 import pickle
@@ -6,7 +6,8 @@ import utils_rs
 from math import inf
 from tqdm import tqdm
 import vis_map, folium
-import more_itertools
+import more_itertools, itertools
+import pandas as pd, random
 from rower_model import Rower
 import torch
 import cmap
@@ -21,12 +22,41 @@ class Test:
 
         with open(data_fp if data_fp is not None else f"./{city}.pkl", "rb") as f:
             tmp: Result = pickle.load(f)
-        (self.nodes, self.edges, trips) = tmp
-        self.trips = {
+        (nodes, edges, trips) = tmp
+        trips = {
             k: {k1: [i for i, _ in v1] for k1, v1 in v.items()}
             for k, v in trips.items()
         }
-        self.g = utils_rs.DiGraph(self.nodes.shape[0], [(i['u'], i['v']) for _, i in self.edges.iterrows()], self.edges["length"])
+
+        nodes_cross: List[Tuple[List[int], List[int]]] = [([], []) for _ in range(nodes.shape[0])]
+        for edge_idx, edge in edges.iterrows():
+            u, v = int(edge['u']), int(edge['v'])
+            nodes_cross[u][1].append(edge_idx)
+            nodes_cross[v][0].append(edge_idx)
+        transformed_edges: List[Tuple[int, int]] = []
+        transformed_length: List[float] = []
+        for in_edges, out_edges in nodes_cross:
+            for in_edge, out_edge in itertools.product(in_edges, out_edges):
+                transformed_edges.append((in_edge, out_edge))
+                transformed_length.append((edges["length"][in_edge] + edges["length"][out_edge]) / 2)
+        self.edges = pd.DataFrame(transformed_edges, columns=["u", "v"], dtype=np.int64)
+        self.edges["length"] = transformed_length
+        self.original_edges_length = edges["length"].to_list()
+
+        ee2te: Dict[Tuple[int, int], int] = {key: idx for idx, key in enumerate(transformed_edges)}
+        
+        self.trips = {
+            k: groupby_io(
+                (
+                    [ee2te[ee] for ee in more_itertools.pairwise(trip)]
+                    for trip in more_itertools.flatten(trips for _, trips in v.items())
+                ), transformed_edges
+            )
+            for k, v in trips.items()
+        }
+        self.trips["valid"] = dict(random.sample(sorted(self.trips["valid"].items()), 10000))
+
+        self.g = utils_rs.DiGraph(edges.shape[0], [(getattr(i, 'u'), getattr(i, 'v')) for i in self.edges.itertuples()], self.edges["length"])
 
         self.model = Rower(self.edges)
         self.model.load_state_dict(torch.load(model_fp if model_fp is not None else f'{city}_model_weights.pth', map_location='cpu'))
@@ -64,9 +94,9 @@ class Test:
         return baseline / len(self.trips["valid"]), acc / len(self.trips["valid"])
     
     def acc_neuromlr(self):
-        baseline_precision, baseline_recall = self.g.experiment_neuromlr(self.trips["valid"], self.edges["length"])
+        baseline_precision, baseline_recall = self.g.experiment_neuromlr(self.trips["valid"], self.original_edges_length)
         with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
-            precision, recall = self.g.experiment_neuromlr(self.trips["valid"], self.edges["length"])
+            precision, recall = self.g.experiment_neuromlr(self.trips["valid"], self.original_edges_length)
         return (
             (baseline_precision / len(self.trips["valid"]), precision / len(self.trips["valid"])),
             (baseline_recall / len(self.trips["valid"]), recall / len(self.trips["valid"]))
@@ -84,127 +114,6 @@ class Test:
             acc = self.g.experiment_top(self.trips["valid"], k)
         return baseline / len(self.trips["valid"]), acc / len(self.trips["valid"])
 
-    def vis_yen(self, u: int = 10893, v: int = 7595, k: int = 200, fname: Optional[str] = None):
-        nodes, edges, g = self.nodes, self.edges, self.g
-        map = vis_map.base_edge_map(nodes, edges,
-            tiles= 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7',
-            attr='高德-常规图', zoom_start=12)
-        yen_trips = [path for path, _ in g.yen(u, v, k)]
-        vis_map.add_edges(map, nodes, edges, set(more_itertools.flatten(yen_trips)), color="#CE4257")
-        vis_map.add_nodes(map, nodes, {
-            u: {
-                'popup': "start",
-                'color': '#0000FF',
-                'radius': 20,
-            },
-            v: {
-                'popup': "target",
-                'color': '#A020F0',
-                'radius': 20,
-            }
-        })
-        if fname is not None: map.save(fname)
-        return map
-
-    def vis_bidijkstra(self, u: int = 10893, v: int = 7595, k: int = 200, fname: Optional[str] = None):
-        nodes, edges, g = self.nodes, self.edges, self.g
-        map = vis_map.base_edge_map(nodes, edges,
-            tiles= 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7',
-            attr='高德-常规图', zoom_start=12)
-        tmp = g.bidirectional_dijkstra(u, v, k)
-        vis_map.add_edges(map, nodes, edges, more_itertools.flatten(tmp), color="#CE4257")
-        vis_map.add_nodes(map, nodes, {
-            u: {
-                'popup': "start",
-                'color': '#0000FF',
-            },
-            v: {
-                'popup': "target",
-                'color': '#A020F0',
-            }
-        })
-        if fname is not None: map.save(fname)
-        return map
-
-    def vis_why_dynamic(self, fname: Optional[str] = None):
-        nodes, edges, trips, g = self.nodes, self.edges, self.trips, self.g
-        c: Dict[Tuple[int, int], Set[Tuple[int]]] = {}
-        tmp = edges[["u", "v"]].to_numpy().tolist()
-        for trip in tqdm(more_itertools.flatten(trips["train"].values())):
-            key = (tmp[trip[0]][0], tmp[trip[-1]][1])
-            if key in c: c[key].add(tuple(trip))
-            else: c[key] = {tuple(trip)}
-        max_val = max(c.items(), key=lambda x: len(x[1]))
-            
-        map = vis_map.base_edge_map(nodes, edges,
-            tiles= 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7',
-            attr='高德-常规图')
-        vis_map.add_trips(map, nodes, edges, max_val[1], color='#4AAD52')
-        # tmp_trips = [path for path, _ in g.yen(max_val[0][0], max_val[0][1], 2000)]
-        tmp_trips = g.bidirectional_dijkstra(max_val[0][0], max_val[0][1], len(max_val[1]))
-        vis_map.add_trips(map, nodes, edges, tmp_trips, color="#CE4257")
-        vis_map.add_nodes(map, nodes, {
-            max_val[0][0]: {
-                'popup': f"start: {max_val[0][0]}",
-                'color': '#0000FF',
-            },
-            max_val[0][1]: {
-                'popup': f"target: {max_val[0][1]}",
-                'color': '#A020F0',
-            }
-        })
-        if fname is not None: map.save(fname)
-        return map
-
-    def vis_improve(self):
-        nodes, edges, trips, g = self.nodes, self.edges, self.trips, self.g
-        c: Dict[Tuple[int, int], Set[Tuple[int]]] = {}
-        tmp = edges[["u", "v"]].to_numpy().tolist()
-        for trip in tqdm(more_itertools.flatten(trips["train"].values())):
-            key = (tmp[trip[0]][0], tmp[trip[-1]][1])
-            if key in c: c[key].add(tuple(trip))
-            else: c[key] = {tuple(trip)}
-        max_val = max(c.items(), key=lambda x: len(x[1]))
-        
-        yen_trips = [path for path, _ in g.yen(max_val[0][0], max_val[0][1], 1)]
-        map = vis_map.base_edge_map(nodes, edges,
-            tiles= 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7',
-            attr='高德-常规图')
-        # vis_map.add_trips(map, nodes, edges, max_val[1], color='#4AAD52')
-        # vis_map.add_trips(map, nodes, edges, yen_trips, color="#CE4257")
-        vis_map.add_edges(map, self.nodes, self.edges, yen_trips[0], color='#4AAD52', weight=5)
-        vis_map.add_nodes(map, nodes, {
-            max_val[0][0]: {
-                'popup': f"start: {max_val[0][0]}",
-                'color': '#0000FF',
-            },
-            max_val[0][1]: {
-                'popup': f"target: {max_val[0][1]}",
-                'color': '#A020F0',
-            }
-        })
-        map.save("before.html")
-
-        with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
-            yen_trips = [path for path, _ in g.yen(max_val[0][0], max_val[0][1], 1)]
-        map = vis_map.base_edge_map(nodes, edges,
-            tiles= 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7',
-            attr='高德-常规图')
-        # vis_map.add_trips(map, nodes, edges, max_val[1], color='#4AAD52')
-        # vis_map.add_trips(map, nodes, edges, yen_trips, color="#CE4257")
-        vis_map.add_edges(map, self.nodes, self.edges, yen_trips[0], color='#4AAD52', weight=5)
-        vis_map.add_nodes(map, nodes, {
-            max_val[0][0]: {
-                'popup': f"start: {max_val[0][0]}",
-                'color': '#0000FF',
-            },
-            max_val[0][1]: {
-                'popup': f"target: {max_val[0][1]}",
-                'color': '#A020F0',
-            }
-        })
-        map.save("after.html")
-
     @staticmethod
     def histogram_equalization(data: np.ndarray, bins: int = 1024):
         hist, bins = np.histogram(data, bins=bins, range=(data.min(), data.max()))
@@ -212,18 +121,6 @@ class Test:
         cdf_normalized = cdf / float(cdf.max())
         equalized_data = np.interp(data, bins[:-1], cdf_normalized)
         return equalized_data
-
-    def vis_delta_weight(self, fname: Optional[str] = None):
-        old_weight = torch.tensor(self.g.weight)
-        new_weight = torch.tensor(self.model.get_weight().flatten().cpu().numpy())
-        c_weight = np.array(sorted((new_weight / old_weight / 2)))
-        cweight: List[float] = self.histogram_equalization(c_weight, 100000).tolist()
-
-        cm = cmap.Colormap('viridis_r')
-        color = [cm(i).hex for i in cweight]
-        m = vis_map.colored_edge_map(self.nodes, self.edges, color, zoom_start=12)
-        if fname is not None: m.save(fname)
-        return m
 
     def plot_weight_distribute(self, axes: Optional[Axes] = None, stroke_color: str = '#737373'):
         """
@@ -265,103 +162,17 @@ class Test:
         axes.set_xlabel('sorted edges')
         axes.set_ylabel(r'$\frac{w(e)}{\mathrm{length}(e)}$')
 
-    def vis_unlearned_edges(self, fname: Optional[str] = None):
-        new_weight = torch.tensor(self.model.get_weight().flatten().cpu().numpy())
-        tmp_edges = self.edges.copy(deep=True)
-        tmp_edges['weight'] = new_weight
-
-        map = vis_map.base_edge_map(
-            self.nodes,
-            tmp_edges.loc[(tmp_edges['length'] == tmp_edges['weight']).abs() < 1e-5],
-            zoom_start=12,
-            color='black'
-        )        
-        if fname is not None: map.save("unlearned_edges.html")
-        return map
-
-    def vis_diff_path(self, u: int = 2408, v: int = 171, fname: Optional[str] = None):
-        map = vis_map.base_edge_map(self.nodes, self.edges,
-            tiles= 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7',
-            attr='高德-常规图', zoom_start=12)
-        p1 = self.trips['valid'][u, v][0]
-        with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
-            p2, = [path for path, _ in self.g.yen(u, v, 1)]
-        p1, p2 = set(p1), set(p2)
-        mixed = '#8C7855'
-        vis_map.add_edges(map, self.nodes, self.edges, p1.union(p2), color=mixed, weight=5)
-        vis_map.add_edges(map, self.nodes, self.edges, p1 - p2, color='#4AAD52', weight=5)
-        vis_map.add_edges(map, self.nodes, self.edges, p2 - p1, color='#CE4257', weight=5)
-        vis_map.add_nodes(map, self.nodes, {
-            u: {
-                'popup': "start",
-                'color': '#0000FF',
-                'radius': 20,
-            },
-            v: {
-                'popup': "target",
-                'color': '#A020F0',
-                'radius': 20,
-            }
-        })
-        if fname is not None: map.save(fname)
-        return map
-    
-    def vis_interventionability(self, u: int = 10893, v: int = 7595, x: float = 116.42375, y: float = 39.8697425, r: float = 0.010):
-        map = vis_map.base_edge_map(self.nodes, self.edges,
-            tiles= 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7',
-            attr='高德-常规图', zoom_start=12)
-        with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
-            path, _ = self.g.dijkstra(u, v)
-        vis_map.add_edges(map, self.nodes, self.edges, path, color='#4AAD52', weight=5)
-        vis_map.add_nodes(map, self.nodes, {
-            10893: {
-                'color': '#0000FF',
-            },
-            7595: {
-                'color': '#A020F0',
-            }
-        })
-        map.save('interventionability_before.html')
-
-        closed_nodes = set(idx for idx, i in self.nodes.iterrows() if (i['x'] - x)**2 + (i['y'] - y)**2 <= r**2)
-        closed_edges = [idx for idx, i in self.edges.iterrows() if (i['u'] in closed_nodes or i['v'] in closed_nodes)]
-        map = vis_map.base_edge_map(self.nodes, self.edges,
-            tiles= 'https://wprd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scl=1&style=7',
-            attr='高德-常规图', zoom_start=12)
-        folium.Circle(
-            (y, x),
-            radius=round(r * 1e5),
-            color = '#FF0000',
-            stroke=False,
-            fillOpacity = 0.3,
-            fill=True
-        ).add_to(map)
-        weights = self.model.get_weight().flatten().cpu().numpy()
-        for e in closed_edges: weights[e] = inf
-        with self.weight_being(weights):
-            path2, _ = self.g.dijkstra(u, v)
-        vis_map.add_edges(map, self.nodes, self.edges, path2, color='#4AAD52', weight=5)
-        vis_map.add_nodes(map, self.nodes, {
-            10893: {
-                'color': '#0000FF',
-            },
-            7595: {
-                'color': '#A020F0',
-            }
-        })
-        map.save('interventionability_after.html')
-
-
 if __name__ == '__main__':
-    for city in ('beijing', 'harbin', 'chengdu', 'cityindia', 'porto'):
+    for city in ('beijing', ):
         test = Test(city, data_fp=f"./{city}.pkl", model_fp=f"./{city}_model_weights.pth")
         fmt = city + ' {\n' + (
             f'    Sim = {test.acc()},\n' +
             # f'    SimTop3 = {test.acc_top(3)},\n' + # too slow
-            f'    Jaccard = {test.acc_jaccard()},\n' +
-            f'    LengthsJaccard = {test.acc_lengths_jaccard()},\n' +
-            f'    LevDistance = {test.acc_lev_distance()}\n' +
+            # f'    Jaccard = {test.acc_jaccard()},\n' +
+            # f'    LengthsJaccard = {test.acc_lengths_jaccard()},\n' +
+            # f'    LevDistance = {test.acc_lev_distance()}\n' +
             f'    Precision = {(prec_recall := test.acc_neuromlr())[0]},\n' +
-            f'    Recall = {prec_recall[1]},\n'
-        ) + '}'
+            f'    Recall = {prec_recall[1]},\n' +
+            '}'
+        )
         print(fmt)

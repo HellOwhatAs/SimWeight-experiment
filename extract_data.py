@@ -34,6 +34,15 @@ def groupby_uv(trips: List[Tuple[List[int], Tuple[int, int]]], edges: List[Tuple
         else: uv2trips[key] = [(trip, time)]
     return uv2trips
 
+def groupby_io(trips: List[List[int]], edges: List[Tuple[int, int]]) -> Dict[Tuple[int, int], List[List[int]]]:
+    io2trips: Dict[Tuple[int, int], List[List[int]]] = {}
+    for trip in trips:
+        key = (edges[trip[0]][0], edges[trip[-1]][1])
+        if key[0] == key[1]: continue
+        if key in io2trips: io2trips[key].append(trip)
+        else: io2trips[key] = [trip]
+    return io2trips
+
 def extract(path: str = "./preprocessed_data/beijing_data", removeloops: bool = True) -> Result:
     edge_df: pd.DataFrame = gpd.read_file(os.path.join(path, "map/edges.shp"), ignore_geometry=True)
     node_df: pd.DataFrame = gpd.read_file(os.path.join(path, "map/nodes.shp"), ignore_geometry=True)
