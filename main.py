@@ -23,12 +23,14 @@ train_num: Optional[int] = getattr(args, 'train_num')
 test_num: int = getattr(args, 'test_num')
 
 from extract_data import Result
-from typing import List
+from typing import List, Tuple, Dict
 import pickle
 import os, time
 from tqdm import tqdm
 import warnings
-from more_itertools import chunked, flatten
+from more_itertools import chunked, flatten, pairwise
+from itertools import product
+import pandas as pd
 import random
 import torch, utils_rs
 from rower_model import Rower, batch_trips, pack_sequence, bpr_loss_reverse
@@ -55,10 +57,35 @@ trips_test = {k: v for k, v in [(k, [i for i, _ in v]) for k, v in (
 )]}
 total_test = sum(len(i) for i in trips_test.values())
 
-g = utils_rs.DiGraph(nodes.shape[0], [(i['u'], i['v']) for _, i in edges.iterrows()], edges["length"])
-model = Rower(edges).to(device)
-if os.path.isfile(model_fname):
-    model.load_state_dict(torch.load(model_fname))
+nodes_cross: List[Tuple[List[int], List[int]]] = [([], []) for _ in range(nodes.shape[0])]
+for edge_idx, edge in edges.iterrows():
+    u, v = int(edge['u']), int(edge['v'])
+    nodes_cross[u][1].append(edge_idx)
+    nodes_cross[v][0].append(edge_idx)
+transformed_edges: List[Tuple[int, int]] = []
+transformed_length: List[float] = []
+for in_edges, out_edges in nodes_cross:
+    for in_edge, out_edge in product(in_edges, out_edges):
+        transformed_edges.append((in_edge, out_edge))
+        transformed_length.append((edges["length"][in_edge] + edges["length"][out_edge]) / 2)
+
+def groupby_io(trips: List[List[int]], edges: List[Tuple[int, int]]) -> Dict[Tuple[int, int], List[List[int]]]:
+    io2trips: Dict[Tuple[int, int], List[List[int]]] = {}
+    for trip in trips:
+        key = (edges[trip[0]][0], edges[trip[-1]][1])
+        if key[0] == key[1]: continue
+        if key in io2trips: io2trips[key].append(trip)
+        else: io2trips[key] = [trip]
+    return io2trips
+
+ee2te: Dict[Tuple[int, int], int] = {key: idx for idx, key in enumerate(transformed_edges)}
+transformed_trips_train = list(groupby_io(([ee2te[ee] for ee in pairwise(trip)] for trip in flatten(trips for _, trips in trips_train)), transformed_edges).items())
+transformed_trips_test = groupby_io(([ee2te[ee] for ee in pairwise(trip)] for trip in flatten(trips for _, trips in trips_test.items())), transformed_edges)
+
+g = utils_rs.DiGraph(edges.shape[0], transformed_edges, transformed_length)
+model = Rower(pd.DataFrame(transformed_length, columns=["length"])).to(device)
+# if os.path.isfile(model_fname):
+#     model.load_state_dict(torch.load(model_fname))
 optimizer = torch.optim.Adam(model.parameters())
 accs: List[int] = []
 best_acc: int = 0
@@ -76,8 +103,8 @@ model.train()
 pbar = tqdm(range(epoch))
 for epoch in pbar:
     loss_value = 0
-    random.shuffle(trips_train)
-    for chunk in chunked(trips_train, chunk_size):
+    random.shuffle(transformed_trips_train)
+    for chunk in chunked(transformed_trips_train, chunk_size):
         seq, sep = batch_trips(chunk, g, k)
         trips_input = pack_sequence(seq, enforce_sorted=False).to(device)
         lengths = model(trips_input)
@@ -88,7 +115,7 @@ for epoch in pbar:
         optimizer.zero_grad()
 
     g.weight = model.get_weight().flatten().cpu().numpy()
-    acc = g.experiment_cme(list(flatten(trips_test.values())))
+    acc = g.experiment_cme(list(flatten(transformed_trips_test.values())))
     pbar.set_postfix(acc=f"{acc} / {total_test}", loss=f"{loss_value:.4f}", refresh=False)
     accs.append(acc)
     losses.append(loss_value)
