@@ -13,7 +13,18 @@ import cmap
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
+import random
 plt.rc('font', family='Times New Roman')
+
+def groupby2groupby(trips: Dict[Tuple[int, int], list[List[int]]], edges: List[Tuple[int, int]]) -> Dict[Tuple[int, int], Tuple[Tuple[int, int], list[List[int]]]]:
+    raw_trips = [i for i in more_itertools.flatten(trips.values()) if len(i) > 3]
+    d: Dict[Tuple[int, int], Tuple[Tuple[int, int], List[List[int]]]] = {}
+    for raw_trip in raw_trips:
+        key = (edges[raw_trip[1]][0], edges[raw_trip[-2]][1])
+        if key[0] == key[1]: continue
+        if key in d: d[key][1].append(raw_trip[1:-1])
+        else: d[key] = ((raw_trip[0], raw_trip[-1]), [raw_trip])
+    return d
 
 class Test:
     def __init__(self, city: str, data_fp: Optional[str] = None, model_fp: Optional[str] = None) -> None:
@@ -26,6 +37,7 @@ class Test:
             k: {k1: [i for i, _ in v1] for k1, v1 in v.items()}
             for k, v in trips.items()
         }
+        # self.trips["test"] = dict(random.sample(sorted(self.trips["test"].items()), 5000))
         self.g = utils_rs.DiGraph(self.nodes.shape[0], [(i['u'], i['v']) for _, i in self.edges.iterrows()], self.edges["length"])
 
         self.model = Rower(self.edges)
@@ -39,50 +51,51 @@ class Test:
         finally: self.g.weight = old_weight
 
     def acc_old(self):
-        trips_test = list(more_itertools.flatten(self.trips["valid"].values()))
+        trips_test = list(more_itertools.flatten(self.trips["test"].values()))
         baseline = self.g.experiment_old(trips_test)
         with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
             acc = self.g.experiment_old(trips_test)
         return baseline / len(trips_test), acc / len(trips_test)
 
     def acc(self):
-        baseline = self.g.experiment(self.trips["valid"])
+        baseline = self.g.experiment(self.trips["test"])
         with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
-            acc = self.g.experiment(self.trips["valid"])
-        return baseline / len(self.trips["valid"]), acc / len(self.trips["valid"])
+            acc = self.g.experiment(self.trips["test"])
+        return baseline / len(self.trips["test"]), acc / len(self.trips["test"])
     
     def acc_jaccard(self):
-        baseline = self.g.experiment_path_jaccard(self.trips["valid"])
+        baseline = self.g.experiment_path_jaccard(self.trips["test"])
         with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
-            acc = self.g.experiment_path_jaccard(self.trips["valid"])
-        return baseline / len(self.trips["valid"]), acc / len(self.trips["valid"])
+            acc = self.g.experiment_path_jaccard(self.trips["test"])
+        return baseline / len(self.trips["test"]), acc / len(self.trips["test"])
     
     def acc_lengths_jaccard(self):
-        baseline = self.g.experiment_path_lengths_jaccard(self.trips["valid"], self.edges["length"])
+        baseline = self.g.experiment_path_lengths_jaccard(self.trips["test"], self.edges["length"])
         with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
-            acc = self.g.experiment_path_lengths_jaccard(self.trips["valid"], self.edges["length"])
-        return baseline / len(self.trips["valid"]), acc / len(self.trips["valid"])
+            acc = self.g.experiment_path_lengths_jaccard(self.trips["test"], self.edges["length"])
+        return baseline / len(self.trips["test"]), acc / len(self.trips["test"])
     
     def acc_neuromlr(self):
-        baseline_precision, baseline_recall = self.g.experiment_neuromlr(self.trips["valid"], self.edges["length"])
+        trips = groupby2groupby(self.trips["test"], self.edges[['u', 'v']].to_numpy().tolist())
+        baseline_precision, baseline_recall = self.g.experiment_neuromlr(trips, self.edges["length"])
         with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
-            precision, recall = self.g.experiment_neuromlr(self.trips["valid"], self.edges["length"])
+            precision, recall = self.g.experiment_neuromlr(trips, self.edges["length"])
         return (
-            (baseline_precision / len(self.trips["valid"]), precision / len(self.trips["valid"])),
-            (baseline_recall / len(self.trips["valid"]), recall / len(self.trips["valid"]))
+            (baseline_precision / len(trips), precision / len(trips)),
+            (baseline_recall / len(trips), recall / len(trips))
         )
 
     def acc_lev_distance(self):
-        baseline = self.g.experiment_path_lev_distance(self.trips["valid"])
+        baseline = self.g.experiment_path_lev_distance(self.trips["test"])
         with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
-            acc = self.g.experiment_path_lev_distance(self.trips["valid"])
-        return baseline / len(self.trips["valid"]), acc / len(self.trips["valid"])
+            acc = self.g.experiment_path_lev_distance(self.trips["test"])
+        return baseline / len(self.trips["test"]), acc / len(self.trips["test"])
     
     def acc_top(self, k: int):
-        baseline = self.g.experiment_top(self.trips["valid"], k)
+        baseline = self.g.experiment_top(self.trips["test"], k)
         with self.weight_being(self.model.get_weight().flatten().cpu().numpy()):
-            acc = self.g.experiment_top(self.trips["valid"], k)
-        return baseline / len(self.trips["valid"]), acc / len(self.trips["valid"])
+            acc = self.g.experiment_top(self.trips["test"], k)
+        return baseline / len(self.trips["test"]), acc / len(self.trips["test"])
 
     def vis_yen(self, u: int = 10893, v: int = 7595, k: int = 200, fname: Optional[str] = None):
         nodes, edges, g = self.nodes, self.edges, self.g
@@ -358,9 +371,9 @@ if __name__ == '__main__':
         fmt = city + ' {\n' + (
             f'    Sim = {test.acc()},\n' +
             # f'    SimTop3 = {test.acc_top(3)},\n' + # too slow
-            f'    Jaccard = {test.acc_jaccard()},\n' +
-            f'    LengthsJaccard = {test.acc_lengths_jaccard()},\n' +
-            f'    LevDistance = {test.acc_lev_distance()}\n' +
+            # f'    Jaccard = {test.acc_jaccard()},\n' +
+            # f'    LengthsJaccard = {test.acc_lengths_jaccard()},\n' +
+            # f'    LevDistance = {test.acc_lev_distance()}\n' +
             f'    Precision = {(prec_recall := test.acc_neuromlr())[0]},\n' +
             f'    Recall = {prec_recall[1]},\n'
         ) + '}'
